@@ -1,0 +1,530 @@
+﻿@* =================================================================================================================
+ * DOSYA ADI: Index.cshtml (Ana Sayfa)
+ * AMACI: Mağazanın dijital vitrinidir. Kullanıcılara yeni gelen ürünleri, çok satanları, popüler markaları 
+ * ve kategorileri görsel bir hiyerarşi içinde sunarak alışveriş yolculuğunu başlatır.
+ * * KULLANILAN TEKNOLOJİLER VE KÜTÜPHANELER:
+ * - Razor View Engine: 'AnasayfaViewModel' üzerinden çoklu veri setlerinin (Yeni Gelenler, CokSatanlar, Kategoriler) işlenmesi.
+ * - AJAX & jQuery: Sayfa yenilenmeden favori ekleme/çıkarma ve dinamik beden listesi yükleme işlemleri.
+ * - CSS3 (Advanced UI): ':root' değişkenleri ile tema yönetimi, 'linear-gradient' geçişleri ve duyarlı (responsive) tasarım.
+ * - Bootstrap 5 Carousel: Her ürün kartı içinde bağımsız çalışan çoklu resim kaydırma mekanizması.
+ * * TASARIM VE FONKSİYONEL DETAYLAR:
+ * 1. Akıllı Emoji Eşleştirme: 'EmojiBul' helper fonksiyonu ile kategori adlarına göre dinamik görsel ikon ataması.
+ * 2. Otomatik Kaydırma (Auto-Scroll): JavaScript tabanlı 'setupStepScroll' mekanizması ile kategori ve marka 
+ * listelerinin belirli aralıklarla yatayda otomatik kaydırılması.
+ * 3. Şansını Dene (Gamification): Kullanıcıyı etkileşime teşvik eden "Bugün Ne Giysem" yönlendirme bandı.
+ * 4. Dinamik Sepet Süreci: 'BedenSecModalAc' fonksiyonu ile ürün detayına gitmeden hızlı beden seçimi ve sepete ekleme akışı.
+ * 5. Görsel Standartlar: 'rank-badge' ile en çok satanların sıralanması ve 'fav-heart' ile kişiselleştirilmiş ürün takibi.
+ ================================================================================================================= *@
+
+@using System.Linq
+@using System.Collections.Generic
+@model ClothingStore.Models.AnasayfaViewModel
+@{
+    ViewData["Title"] = "Anasayfa";
+    string EmojiBul(string kategoriAdi)
+    {
+        if (string.IsNullOrEmpty(kategoriAdi)) return "🛍️";
+        string ad = kategoriAdi.ToLower(new System.Globalization.CultureInfo("tr-TR")).Trim();
+
+        if (ad.Contains("pantolon") || ad.Contains("jean") || ad.Contains("kot")) return "👖";
+        if (ad.Contains("tshirt") || ad.Contains("t-shirt")) return "👕";
+        if (ad.Contains("crop") || ad.Contains("bluz")) return "👚";
+        if (ad.Contains("elbise") || ad.Contains("etek")) return "👗";
+        if (ad.Contains("mont") || ad.Contains("kaban")) return "❄️";
+        if (ad.Contains("ceket") || ad.Contains("trenç")) return "🧥";
+        if (ad.Contains("gömlek")) return "👔";
+        if (ad.Contains("hırka") || ad.Contains("kazak")) return "🧶";
+        if (ad.Contains("spor") || ad.Contains("sneaker")) return "👟";
+        if (ad.Contains("bot") || ad.Contains("çizme")) return "👢";
+        if (ad.Contains("topuklu")) return "👠";
+        if (ad.Contains("terlik")) return "🩴";
+        if (ad.Contains("tulum")) return "🕴️";
+        if (ad.Contains("çanta")) return "👜";
+
+        return "🛍️";
+    }
+}
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<style>
+    :root {
+        --active-grad: linear-gradient(135deg, #ff7eb3 0%, #a770ef 100%);
+        --soft-vibe: #fff9fc;
+        --deep-lila: #a770ef;
+        --pink-accent: #ff7eb3;
+    }
+
+    body {
+        background-color: var(--soft-vibe);
+        font-family: 'Poppins', sans-serif;
+        overflow-x: hidden;
+    }
+
+    a {
+        text-decoration: none !important;
+        color: inherit;
+    }
+
+    .hero-vitrin {
+        width: 100%;
+        height: 500px;
+        background: url('/img/modasitem_vitrin.jpg.jpeg') center/cover no-repeat !important;
+        border-radius: 0 0 50px 50px;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 10px 30px rgba(167, 112, 239, 0.15);
+        margin-bottom: 40px;
+        background-color: #f0f0f0;
+    }
+
+    .showcase-row {
+        display: flex;
+        gap: 20px;
+        padding: 0 5%;
+        margin-top: -70px;
+        position: relative;
+        z-index: 10;
+    }
+
+    .showcase-item {
+        flex: 1;
+        padding: 30px;
+        border-radius: 25px;
+        text-align: center;
+        background: var(--active-grad);
+        color: white;
+        box-shadow: 0 8px 20px rgba(167, 112, 239, 0.3);
+        transition: 0.3s;
+        cursor: pointer;
+    }
+
+        .showcase-item:hover {
+            transform: translateY(-10px);
+        }
+
+    .lucky-strip {
+        background: var(--active-grad);
+        color: white;
+        padding: 22px;
+        margin: 45px 5%;
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 10px 25px rgba(167, 112, 239, 0.3);
+        transition: 0.3s;
+        cursor: pointer;
+    }
+
+    .section-header-purple {
+        border-bottom: 3px solid #ff7eb3;
+        color: var(--deep-lila);
+        font-weight: 800;
+        margin: 50px 5% 25px;
+        padding-bottom: 10px;
+        text-transform: uppercase;
+        font-size: 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .auto-scroll-wrapper {
+        position: relative;
+        margin: 0 5%;
+        overflow: hidden;
+    }
+
+    .auto-scroll-container {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 25px;
+        overflow-x: hidden;
+        scroll-behavior: smooth;
+        white-space: nowrap;
+        padding: 15px 0;
+    }
+
+    .circle-item {
+        min-width: 130px;
+        text-align: center;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex-shrink: 0;
+    }
+
+    .circle-img {
+        width: 110px;
+        height: 110px;
+        border-radius: 50%;
+        background: white;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 15px;
+        font-size: 45px;
+        transition: 0.3s;
+    }
+
+    .circle-item:hover .circle-img {
+        box-shadow: 0 0 0 4px var(--deep-lila), 0 10px 25px rgba(167, 112, 239, 0.25);
+    }
+
+    .Urun-card {
+        border: none;
+        border-radius: 30px;
+        padding: 20px;
+        background: white;
+        height: 100%;
+        text-align: center;
+        position: relative;
+        transition: 0.4s;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+    }
+
+        .Urun-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 35px rgba(167, 112, 239, 0.2);
+        }
+
+    .fav-heart {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        background: white;
+        border-radius: 50%;
+        width: 35px;
+        height: 35px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        cursor: pointer;
+        color: #ddd;
+        transition: 0.3s;
+    }
+
+        .fav-heart.active i {
+            color: #ff4fa3 !important;
+        }
+
+    .fiyat-purple {
+        color: var(--deep-lila);
+        font-size: 1.3rem;
+        font-weight: 800;
+        margin: 10px 0;
+    }
+
+    .btn-sepete-ekle-purple {
+        background: var(--active-grad);
+        color: white !important;
+        font-weight: 700;
+        border-radius: 15px;
+        padding: 12px;
+        border: none;
+    }
+
+    .rank-badge {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        width: 35px;
+        height: 35px;
+        background: var(--pink-accent);
+        color: white;
+        font-weight: bold;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 5;
+    }
+
+    .carousel-control-prev-icon, .carousel-control-next-icon {
+        filter: invert(1) grayscale(100);
+        width: 20px;
+    }
+
+    @@media (max-width: 768px) {
+        .showcase-row
+
+    {
+        flex-direction: column; 
+        margin-top: -30px;
+        gap: 15px;
+    }
+
+    .hero-vitrin {
+        height: 300px; 
+        border-radius: 0 0 30px 30px;
+    }
+
+    .lucky-strip {
+        flex-direction: column;
+        text-align: center;
+        font-size: 14px;
+        padding: 15px;
+    }
+
+    .section-header-purple {
+        font-size: 1.2rem;
+    }
+
+    .Urun-card {
+        padding: 10px;
+    }
+
+    }
+</style>
+
+<section class="hero-vitrin"></section>
+
+<div class="showcase-row">
+    <div class="showcase-item"><h2>Yeni Sezon</h2><p>Trendleri Keşfet</p></div>
+    <div class="showcase-item" style="opacity:0.92;"><h2>%20 İndirim</h2><p>Kaçırılmayacak Fırsat</p></div>
+    <div class="showcase-item"><h2>Favoriler</h2><p>Haftanın En İyileri</p></div>
+</div>
+
+<a href="/Home/SansiniDene" class="lucky-strip">
+    <i class="fa fa-magic me-3" style="font-size:24px;"></i>
+    <span class="fw-bold">BUGÜN NE GİYSEM DEME, SENİN İÇİN SEÇELİM! (ŞANSINI DENE)</span>
+</a>
+
+<div class="section-header-purple"><span>KATEGORİLER</span></div>
+<div class="auto-scroll-wrapper">
+    <div class="auto-scroll-container" id="scrollKategori">
+        @if (Model.Kategoriler != null)
+        {
+            @foreach (var kat in Model.Kategoriler.Where(x => x.UstKategoriId != null))
+            {
+                <a href="/Urun/TumUrunler?kategoriId=@kat.KategoriId" class="circle-item">
+                    <div class="circle-img">@EmojiBul(kat.KategoriAdi)</div>
+                    <div class="fw-bold text-dark small">@kat.KategoriAdi</div>
+                </a>
+            }
+        }
+    </div>
+</div>
+
+<div class="section-header-purple"><span>YENİ EKLENEN ÜRÜNLER</span></div>
+<div class="container-fluid px-2 px-md-5">
+    <div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 g-2 g-md-4">
+        @if (Model.YeniGelenler != null)
+        {
+            @foreach (var Urun in Model.YeniGelenler.OrderByDescending(x => x.UrunId).Take(10))
+            {
+                var resimler = !string.IsNullOrEmpty(Urun.ResimYolu) ? Urun.ResimYolu.Split(',').Select(r => r.Trim()).ToList() : new List<string>();
+                <div class="col">
+                    <div class="Urun-card">
+                        <div class="fav-heart @(Urun.Favorilers != null && Urun.Favorilers.Any() ? "active" : "")" onclick="FavoriIslemi(this, @Urun.UrunId)">
+                            <i class="@(Urun.Favorilers != null && Urun.Favorilers.Any() ? "fa-solid" : "fa-regular") fa-heart"></i>
+                        </div>
+                        <a href="/Urun/Detay/@Urun.UrunId">
+                            <div id="carousel-new-@Urun.UrunId" class="carousel slide all-product-carousels" data-bs-ride="carousel">
+                                <div class="carousel-inner" style="height:200px;">
+                                    @for (int i = 0; i < resimler.Count; i++)
+                                    {
+                                        <div class="carousel-item @(i == 0 ? "active" : "")">
+                                            <img src="/img/@resimler[i]" style="height:200px; width:100%; object-fit:contain;" onerror="this.src='/img/resim-yok.png';" />
+                                        </div>
+                                    }
+                                </div>
+                                @if (resimler.Count > 1)
+                                {
+                                    <button class="carousel-control-prev" type="button" data-bs-target="#carousel-new-@Urun.UrunId" data-bs-slide="prev"><span class="carousel-control-prev-icon"></span></button>
+                                    <button class="carousel-control-next" type="button" data-bs-target="#carousel-new-@Urun.UrunId" data-bs-slide="next"><span class="carousel-control-next-icon"></span></button>
+                                }
+                            </div>
+                            <div class="text-truncate fw-bold text-dark mt-3">@Urun.UrunAdi</div>
+                        </a>
+                        <div class="fiyat-purple">@Urun.Fiyat.ToString("C2")</div>
+                        <button type="button" class="btn btn-sepete-ekle-purple w-100" onclick="BedenSecModalAc(@Urun.UrunId)">🛒 SEPETE EKLE</button>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+<div class="section-header-purple mt-5"><span>ÇOK SATANLAR (İLK 10)</span></div>
+<div class="container-fluid px-2 px-md-5">
+    <div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 g-2 g-md-4">
+        @if (Model.CokSatanlar != null)
+        {
+            int sira = 1;
+            @foreach (var Urun in Model.CokSatanlar.Take(10))
+            {
+                var resimler = !string.IsNullOrEmpty(Urun.ResimYolu) ? Urun.ResimYolu.Split(',').Select(r => r.Trim()).ToList() : new List<string>();
+                <div class="col">
+                    <div class="Urun-card">
+                        <div class="rank-badge">@sira</div>
+                        <div class="fav-heart @(Urun.Favorilers != null && Urun.Favorilers.Any() ? "active" : "")" onclick="FavoriIslemi(this, @Urun.UrunId)">
+                            <i class="@(Urun.Favorilers != null && Urun.Favorilers.Any() ? "fa-solid" : "fa-regular") fa-heart"></i>
+                        </div>
+                        <a href="/Urun/Detay/@Urun.UrunId">
+                            <div id="carousel-best-@Urun.UrunId" class="carousel slide all-product-carousels" data-bs-ride="carousel">
+                                <div class="carousel-inner" style="height:200px;">
+                                    @for (int i = 0; i < resimler.Count; i++)
+                                    {
+                                        <div class="carousel-item @(i == 0 ? "active" : "")">
+                                            <img src="/img/@resimler[i]" style="height:200px; width:100%; object-fit:contain;" onerror="this.src='/img/resim-yok.png';" />
+                                        </div>
+                                    }
+                                </div>
+                                @if (resimler.Count > 1)
+                                {
+                                    <button class="carousel-control-prev" type="button" data-bs-target="#carousel-best-@Urun.UrunId" data-bs-slide="prev"><span class="carousel-control-prev-icon"></span></button>
+                                    <button class="carousel-control-next" type="button" data-bs-target="#carousel-best-@Urun.UrunId" data-bs-slide="next"><span class="carousel-control-next-icon"></span></button>
+                                }
+                            </div>
+                            <div class="text-truncate fw-bold text-dark mt-3">@Urun.UrunAdi</div>
+                        </a>
+                        <div class="fiyat-purple">@Urun.Fiyat.ToString("C2")</div>
+                        <button type="button" class="btn btn-sepete-ekle-purple w-100" onclick="BedenSecModalAc(@Urun.UrunId)">🛒 SEPETE EKLE</button>
+                    </div>
+                </div>
+                sira++;
+            }
+        }
+    </div>
+</div>
+
+
+<div class="section-header-purple mt-5"><span>POPÜLER MARKALAR</span></div>
+<div class="auto-scroll-wrapper mb-5">
+    <div class="auto-scroll-container" id="scrollMarka">
+        @if (Model.Markalar != null)
+        {
+            @foreach (var marka in Model.Markalar)
+            {
+                <a href="/Urun/TumUrunler?marka=@marka.MarkaAdi" class="circle-item">
+                    <div class="circle-img">
+                        @if (!string.IsNullOrEmpty(marka.MarkaResimYolu))
+                        {
+                            <img src="/img/@marka.MarkaResimYolu" style="width:70%; height:70%; object-fit:contain;" />
+                        }
+                        else
+                        {
+                            <span style="font-size:14px; font-weight:bold; color:var(--deep-lila);">@marka.MarkaAdi.Substring(0, 1)</span>
+                        }
+                    </div>
+                    <div class="circle-text fw-bold text-muted small">@marka.MarkaAdi</div>
+                </a>
+            }
+        }
+    </div>
+</div>
+
+<div class="modal fade" id="bedenModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content shadow-lg" style="border-radius: 20px; border: none;">
+            <div class="modal-header border-0 text-center pb-0">
+                <h5 class="modal-title w-100 fw-bold" style="color: var(--deep-lila);">Beden Seçimi</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center pt-2">
+                <p class="small text-muted mb-3">Lütfen sepete eklemek istediğiniz seçeneği belirleyin:</p>
+
+                <form id="sepeteEkleForm" action="/Sepet/Ekle" method="get">
+                    <input type="hidden" name="UrunId" id="modalUrunId" value="" />
+
+                    <select class="form-select form-select-lg mb-3 shadow-sm border-0 bg-light fw-bold text-center" name="BedenId" id="modalBedenSelect" required>
+                    </select>
+
+                    <button type="submit" class="btn btn-sepete-ekle-purple w-100 mt-2" id="modalSubmitBtn">SEPETE ONAYLA</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function setupStepScroll(elementId) {
+        const container = document.getElementById(elementId);
+        if (!container) return;
+
+        setInterval(() => {
+            if (container.matches(':hover')) return;
+
+            const step = 160; 
+            const maxScroll = container.scrollWidth - container.clientWidth;
+
+            if (container.scrollLeft >= maxScroll - 5) {
+                container.scrollTo({ left: 0, behavior: 'smooth' });
+            } else {
+                container.scrollBy({ left: step, behavior: 'smooth' });
+            }
+        }, 3000);
+    }
+
+    function syncCarousels() {
+        $('.all-product-carousels').carousel({
+            interval: 4000, 
+            pause: "hover"
+        });
+    }
+
+    function FavoriIslemi(btn, urunId) {
+        const heartIcon = $(btn).find('i');
+        $.ajax({
+            url: '/Account/FavoriEkleCikar',
+            type: 'POST',
+            data: { UrunId: urunId },
+            success: function (res) {
+                if (res.success) {
+                    $(btn).toggleClass('active');
+                    heartIcon.toggleClass('fa-solid fa-regular');
+                } else {
+                    window.location.href = '/Account/Login';
+                }
+            },
+            error: function () { window.location.href = '/Account/Login'; }
+        });
+    }
+
+    function BedenSecModalAc(urunId) {
+        $('#modalUrunId').val(urunId);
+
+        var $select = $('#modalBedenSelect');
+        var $btn = $('#modalSubmitBtn');
+
+        $select.empty().append('<option value="" selected disabled>⏳ Bedenler Yükleniyor...</option>');
+        $btn.prop('disabled', true);
+
+        $('#bedenModal').modal('show');
+
+        $.ajax({
+            url: '/Urun/UrunBedenleriGetir',
+            type: 'GET',
+            data: { urunId: urunId },
+            success: function (data) {
+                $select.empty();
+
+                if (data && data.length > 0) {
+                    $select.append('<option value="" selected disabled>Seçiniz...</option>');
+                    $.each(data, function (index, item) {
+                        $select.append('<option value="' + item.bedenId + '">' + item.bedenAdi + '</option>');
+                    });
+                    $btn.prop('disabled', false);
+                } else {
+                    $select.append('<option value="" selected disabled>❌ Stokta Yok</option>');
+                }
+            },
+            error: function () {
+                $select.empty().append('<option value="" selected disabled>⚠️ Hata oluştu</option>');
+            }
+        });
+    }
+
+    $(document).ready(function () {
+        setupStepScroll('scrollKategori');
+        setupStepScroll('scrollMarka');
+        syncCarousels();
+    });
+</script>

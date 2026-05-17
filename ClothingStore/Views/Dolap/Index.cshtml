@@ -1,0 +1,263 @@
+﻿@* =================================================================================================================
+ * DOSYA ADI: Dolap.cshtml (Dijital Gardırop Yönetimi)
+ * AMACI: Kullanıcıların sahip oldukları kıyafetleri kategorize ederek dijital bir arşiv oluşturmalarını sağlar. 
+ * 'Hybrid Combination Studio' konseptinin temel veri kaynağı olan kişisel envanter yönetim arayüzüdür.
+ * * KULLANILAN TEKNOLOJİLER VE KÜTÜPHANELER:
+ * - Razor View Engine: 'Dolap' modeli üzerinden kullanıcıya özel kıyafetlerin dinamik olarak listelenmesi.
+ * - JavaScript (Client-Side Filtering): 'filterCategory' fonksiyonu ile sayfa yenilenmeden, 
+ * data-category özniteliği (attribute) üzerinden anlık ürün filtreleme.
+ * - CSS3 (Modern Styling): Degrade arka plan (linear-gradient), yumuşak gölgeler ve etkileşimli kart tasarımları.
+ * - Bootstrap 5: Grid sistemi üzerinden asimetrik (4-8) yerleşim planı ile form ve liste ayrımı.
+ * * TASARIM VE FONKSİYONEL DETAYLAR:
+ * 1. Dinamik Kategori Haritalama: Razor 'switch-case' yapısı ile sayısal KategoriId değerlerinin 
+ * anlamlı metinlere (Üst Giyim, Ayakkabı vb.) dönüştürülerek kullanıcıya sunulması.
+ * 2. Asenkron Dosya Yükleme: 'enctype="multipart/form-data"' protokolü ile kullanıcı cihazından 
+ * yerel kıyafet görsellerinin sunucuya transferi.
+ * 3. Hata Yönetimi: 'onerror' olay yöneticisi ile yüklenemeyen görseller için otomatik yer tutucu (placeholder) kullanımı.
+ * 4. UX Standartları: Aktif kategori sekmelerinin (tabs) görsel vurgusu ve silme işlemleri için 
+ * entegre edilmiş JavaScript onay (confirm) mekanizması.
+ * 5. Boş Durum (Empty State): Dolabın boş olduğu senaryolarda ikonik ve yönlendirici bir bilgilendirme alanı.
+ ================================================================================================================= *@
+
+@model List<ClothingStore.Models.Dolap>
+
+@{
+    ViewData["Title"] = "Dolabım";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+
+    .dolap-container {
+        background: linear-gradient(to bottom, #fff7fa, #ffeef5);
+        padding: 60px 0;
+        min-height: 100vh;
+    }
+    .dolap-card {
+        background: white;
+        padding: 30px;
+        border-radius: 25px;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 30px rgba(255, 182, 193, 0.15);
+        border: none;
+    }
+
+        .dolap-card h2 {
+            color: #d86b96;
+            font-weight: 800;
+            margin-bottom: 25px;
+            font-size: 1.5rem;
+        }
+
+    .dolap-select {
+        width: 100%;
+        padding: 14px;
+        margin-top: 10px;
+        margin-bottom: 20px;
+        border-radius: 12px;
+        border: 2px solid #ffd0df;
+        outline: none;
+        background-color: white;
+        color: #555;
+        font-weight: 500;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23d86b96' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C2.185 5.355 2.398 5 2.851 5h9.447c.453 0 .665.355.399.658l-4.796 5.482a.5.5 0 0 1-.748 0z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 15px center;
+        transition: 0.3s;
+        cursor: pointer;
+    }
+
+        .dolap-select:focus {
+            border-color: #ffb3cc;
+            box-shadow: 0 0 10px rgba(255, 179, 204, 0.3);
+        }
+
+    .category-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 30px;
+    }
+
+    .tab-btn {
+        border: 2px solid #ffb3cc;
+        background: white;
+        color: #d86b96;
+        padding: 10px 24px;
+        border-radius: 30px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: 0.3s;
+    }
+
+        .tab-btn.active, .tab-btn:hover {
+            background: #ffb3cc;
+            color: white;
+            box-shadow: 0 4px 15px rgba(255, 179, 204, 0.3);
+        }
+
+    #liste {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 25px;
+    }
+
+    .dolap-item {
+        background: white;
+        padding: 20px;
+        border-radius: 22px;
+        text-align: center;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.04);
+        border: 1px solid #fff0f5;
+        transition: 0.3s;
+    }
+
+        .dolap-item:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 25px rgba(216, 107, 150, 0.15);
+        }
+
+        .dolap-item img {
+            width: 100%;
+            height: 200px;
+            object-fit: contain;
+            border-radius: 18px;
+            margin-bottom: 15px;
+            background: #fdfafb;
+        }
+
+        .dolap-item h5 {
+            font-weight: 800;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+    .btn-remove-custom {
+        color: #d90429;
+        font-weight: 800;
+        text-decoration: none;
+        font-size: 0.9rem;
+        background: none;
+        border: none;
+        padding: 5px 10px;
+        transition: 0.3s;
+        cursor: pointer;
+    }
+
+        .btn-remove-custom:hover {
+            opacity: 0.7;
+            transform: scale(1.05);
+        }
+
+    .btn-dolap-submit {
+        background: linear-gradient(135deg, #ffb3cc 0%, #ff9fc0 100%);
+        color: white;
+        border: none;
+        padding: 16px;
+        border-radius: 15px;
+        font-weight: 800;
+        width: 100%;
+        cursor: pointer;
+        transition: 0.3s;
+    }
+</style>
+
+<div class="dolap-container">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-4">
+                <div class="dolap-card">
+                    <h2><i class="fa fa-plus-circle me-2"></i>Yeni Kıyafet Ekle</h2>
+
+                    <form action="/Dolap/UrunEkle" method="post" enctype="multipart/form-data">
+
+                        <label class="fw-bold text-muted small ms-1">Kıyafet Adı</label>
+                        <input type="text" name="UrunAdi" class="form-control mb-3" placeholder="Kıyafet adı" required style="border-radius:12px; border:2px solid #ffd0df; padding:12px;">
+
+                        <label class="fw-bold text-muted small ms-1">Kategori Seçin</label>
+                        <select name="KategoriId" class="dolap-select" required>
+                            <option value="">Seçiniz...</option>
+                            <option value="1">Üst Giyim</option>
+                            <option value="2">Alt Giyim</option>
+                            <option value="3">Dış Giyim</option>
+                            <option value="4">Ayakkabı</option>
+                            <option value="5">Çanta</option>
+                        </select>
+
+                        <label class="fw-bold text-muted small ms-1">Görsel Yükle</label>
+                        <input type="file" name="resimDosyasi" class="form-control mb-4" accept="image/*" required style="border-radius:12px; border:2px solid #ffd0df; padding:10px;">
+
+                        <button type="submit" class="btn-dolap-submit"> DOLABA EKLE </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-lg-8">
+                <div class="dolap-card">
+                    <h2><i class="fa fa-shirt me-2"></i>Dolabımdaki Parçalar</h2>
+
+                    <div class="category-tabs">
+                        <button class="tab-btn active" onclick="filterCategory('Hepsi', this)">Hepsi</button>
+                        <button class="tab-btn" onclick="filterCategory('Üst Giyim', this)">Üst Giyim</button>
+                        <button class="tab-btn" onclick="filterCategory('Alt Giyim', this)">Alt Giyim</button>
+                        <button class="tab-btn" onclick="filterCategory('Dış Giyim', this)">Dış Giyim</button>
+                        <button class="tab-btn" onclick="filterCategory('Ayakkabı', this)">Ayakkabı</button>
+                        <button class="tab-btn" onclick="filterCategory('Çanta', this)">Çanta</button>
+                    </div>
+
+                    <div id="liste">
+                        @if (Model != null && Model.Any())
+                        {
+                            @foreach (var item in Model)
+                            {
+                                string kategoriSinifi = "";
+                                string katId = item.KategoriId.ToString();
+
+                                switch (katId)
+                                {
+                                    case "1": kategoriSinifi = "Üst Giyim"; break;
+                                    case "2": kategoriSinifi = "Alt Giyim"; break;
+                                    case "3": kategoriSinifi = "Dış Giyim"; break;
+                                    case "4": kategoriSinifi = "Ayakkabı"; break;
+                                    case "5": kategoriSinifi = "Çanta"; break;
+                                    default: kategoriSinifi = "Diğer"; break;
+                                }
+
+                                <div class="dolap-item" data-category="@kategoriSinifi">
+                                    <img src="/img/@item.ResimYolu" alt="@item.UrunAdi" onerror="this.src='https://via.placeholder.com/200x250?text=Görsel+Yok';">
+                                    <h5>@item.UrunAdi</h5>
+                                    <div class="small text-muted mb-3 font-weight-bold">@kategoriSinifi</div>
+                                    <a href="/Dolap/Sil/@item.DolapId" class="btn-remove-custom" onclick="return confirm('Bu parçayı dolabınızdan kaldırmak istediğinize emin misiniz?')">Kaldır</a>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="text-center w-100 p-5 text-muted" id="emptyMessage">
+                                <i class="fa fa-cloud-upload fa-3x mb-3" style="opacity:0.3;"></i>
+                                <p class="fw-bold">Dolabınıza henüz bir şey eklemediniz.</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function filterCategory(category, btn) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const items = document.getElementsByClassName("dolap-item");
+        for (let i = 0; i < items.length; i++) {
+            const itemCat = items[i].getAttribute("data-category");
+            if (category === 'Hepsi' || itemCat === category) {
+                items[i].style.display = "block";
+            } else {
+                items[i].style.display = "none";
+            }
+        }
+    }
+</script>

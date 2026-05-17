@@ -1,0 +1,468 @@
+﻿@* =================================================================================================================
+ * DOSYA ADI: KombinOlustur.cshtml (Hibrit Kombin Stüdyosu)
+ * AMACI: Kullanıcıların mağaza ürünleri ve kendi yükledikleri (dolap) kıyafetleri karma bir şekilde 
+ * kullanarak sanal manken üzerinde görselleştirmesini, fiyatlandırmasını ve kombin olarak kaydetmesini sağlar.
+ * * KULLANILAN TEKNOLOJİLER VE KÜTÜPHANELER:
+ * - Razor View Engine: 'Kombinler' modeli ve ViewBag (MagazaUrunleri, KisiselDolap) üzerinden hibrit veri yönetimi.
+ * - jQuery & DOM Manipulation: Dinamik kaynak seçimi (Mağaza/Dolap), asenkron fiyat hesaplama ve manken görselleştirme.
+ * - CSS3 Layering & Mannequin Logic: 'z-index' yönetimi ve 'absolute' konumlandırma ile anatomik giydirme simülasyonu.
+ * - Bootstrap 5: Navigasyon sekmeleri (Pills), duyarlı grid yapısı ve modal entegrasyonu.
+ * * TASARIM VE FONKSİYONEL DETAYLAR:
+ * 1. Hibrit Veri Kaynağı (Source Selector): Her kategori için (Üst, Alt vb.) kullanıcının mağaza ve dolap arasında 
+ * geçiş yapmasını sağlayan dinamik radyo buton mimarisi.
+ * 2. Sanal Giyinme Odası: Seçilen ürünlerin manken üzerindeki ilgili bölgelere (Dış, Üst, Alt, Ayakkabı, Çanta) 
+ * 'globalZIndex' takibi ile doğru katman sırasıyla (layering) yerleştirilmesi.
+ * 3. Akıllı Fiyat Motoru: Sadece mağaza ürünlerinin fiyatlarını hesaba katan, dolap ürünlerini 0 TL 
+ * olarak değerlendiren anlık 'fiyatHesapla' fonksiyonu.
+ * 4. Düzenleme Modu Entegrasyonu: Mevcut bir kombin ID'si ile açıldığında, kombin detaylarını Razor 
+ * üzerinden JavaScript tetikleyicilerine (trigger) aktaran otomatik doldurma mantığı.
+ * 5. UX Standartları: 'secim-katmani' ile görsel onay, manken üzerindeki parça yerleşimleri ve 
+ * neon pembe (#ff4fa3) vurgulu 'Soft-Pink' tasarım dili.
+ ================================================================================================================= *@
+
+@model ClothingStore.Models.Kombinler
+@{
+    ViewData["Title"] = "Kombin Yap";
+}
+
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: 'Poppins', sans-serif;
+    }
+
+    body {
+        background: #fff7fb;
+        padding: 30px;
+    }
+
+    .main-container {
+        display: flex;
+        gap: 30px;
+        align-items: flex-start;
+    }
+
+    .left-panel {
+        flex: 1;
+        background: white;
+        border-radius: 32px;
+        padding: 40px;
+        box-shadow: 0 4px 25px rgba(255,192,203,0.12);
+    }
+
+    .nav-categories {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 30px;
+        flex-wrap: wrap;
+        list-style: none;
+    }
+
+        .nav-categories .nav-link {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 30px;
+            background: #ffe3ef;
+            color: #ff4fa3;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.3s;
+            font-size: 14px;
+        }
+
+            .nav-categories .nav-link.active {
+                background: #ff4fa3;
+                color: white;
+            }
+
+    .source-selector {
+        background: #fff3f8;
+        padding: 5px;
+        border-radius: 12px;
+        display: inline-flex;
+        margin-bottom: 20px;
+    }
+
+        .source-selector input:checked + label {
+            background: white;
+            color: #ff4fa3;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .source-selector label {
+            border: none !important;
+            border-radius: 10px !important;
+            font-size: 0.85rem;
+            padding: 8px 16px;
+            cursor: pointer;
+        }
+
+    .products-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 22px;
+        max-height: 600px;
+        overflow-y: auto;
+        padding-right: 10px;
+    }
+
+    .card-item {
+        background: #fff8fb;
+        border-radius: 26px;
+        padding: 18px;
+        transition: 0.3s;
+        position: relative;
+        border: 2px solid transparent;
+        cursor: pointer;
+    }
+
+        .card-item:hover {
+            transform: translateY(-6px);
+        }
+
+        .card-item.secili {
+            border-color: #ff4fa3;
+            background: white;
+        }
+
+        .card-item img {
+            width: 100%;
+            height: 230px;
+            object-fit: contain;
+            border-radius: 20px;
+            background: white;
+        }
+
+        .card-item h3 {
+            font-size: 16px;
+            margin-top: 14px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+    .card-price {
+        color: #ff4fa3;
+        font-weight: 700;
+        margin: 10px 0;
+        text-align: center;
+    }
+
+    .secim-katmani {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255,79,163,0.15);
+        border-radius: 26px;
+        display: none;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .card-item.secili .secim-katmani {
+        display: flex;
+    }
+
+    .right-panel {
+        width: 440px;
+        background: white;
+        border-radius: 32px;
+        padding: 30px;
+        box-shadow: 0 4px 25px rgba(255,192,203,0.12);
+        position: sticky;
+        top: 30px;
+    }
+
+    .combo-name-input {
+        width: 100%;
+        height: 50px;
+        border: none;
+        background: #fff3f8;
+        border-radius: 16px;
+        padding-left: 18px;
+        margin-bottom: 25px;
+        outline: none;
+        font-size: 15px;
+    }
+
+    .mannequin-box {
+        width: 100%;
+        height: 600px;
+        background: #fff8fb;
+        border-radius: 30px;
+        position: relative;
+        overflow: hidden;
+        border: 2px dashed #ffd3e6;
+    }
+
+    .manken-parca {
+        position: absolute;
+        pointer-events: none;
+        transition: 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 13px;
+        color: #ff4fa3;
+        border: 1px dashed rgba(255, 79, 163, 0.2);
+        border-radius: 10px;
+    }
+
+        .manken-parca img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.1));
+        }
+
+    .total-box-pink {
+        margin-top: 22px;
+        background: #fff3f8;
+        border-radius: 20px;
+        padding: 20px;
+        display: flex;
+        justify-content: space-between;
+        font-size: 22px;
+        font-weight: 700;
+        color: #ff4fa3;
+    }
+
+    .btn-pink-main {
+        width: 100%;
+        height: 56px;
+        border: none;
+        border-radius: 18px;
+        background: #ff4fa3;
+        color: white;
+        font-size: 17px;
+        font-weight: 600;
+        margin-top: 20px;
+        cursor: pointer;
+        transition: 0.3s;
+    }
+
+        .btn-pink-main:hover {
+            opacity: 0.9;
+            transform: scale(1.02);
+        }
+
+    .side-btns {
+        display: flex;
+        gap: 12px;
+        margin-top: 16px;
+    }
+
+    .btn-secondary-pink {
+        flex: 1;
+        height: 55px;
+        border: none;
+        border-radius: 18px;
+        font-weight: 600;
+        cursor: pointer;
+        background: #ffe3ef;
+        color: #ff4fa3;
+    }
+</style>
+
+
+<div class="main-container">
+    <div class="left-panel">
+        <ul class="nav nav-categories" id="kategori-tab">
+            <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#ust-pane">Üst Giyim</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#alt-pane">Alt Giyim</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#dis-pane">Dış Giyim</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#ayakkabi-pane">Ayakkabı</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#canta-pane">Çanta</button></li>
+        </ul>
+
+        <div class="tab-content">
+            @{
+                var kategoriler = new[] {
+                        new { Id = "ust", Baslik = "Üst Giyim", DbId = "1" },
+                        new { Id = "alt", Baslik = "Alt Giyim", DbId = "2" },
+                        new { Id = "dis", Baslik = "Dış Giyim", DbId = "3" },
+                        new { Id = "ayakkabi", Baslik = "Ayakkabı", DbId = "4" },
+                        new { Id = "canta", Baslik = "Çanta", DbId = "5" }
+                        };
+            }
+
+            @foreach (var kat in kategoriler)
+            {
+                <div class="tab-pane fade @(kat.Id == "ust" ? "show active" : "")" id="@kat.Id-pane">
+                    <div class="source-selector">
+                        <input type="radio" class="btn-check kaynak-sec" name="kaynak-@kat.Id" id="kaynak-@kat.Id-magaza" value="magaza" checked hidden>
+                        <label for="kaynak-@kat.Id-magaza">Mağazadan</label>
+                        <input type="radio" class="btn-check kaynak-sec" name="kaynak-@kat.Id" id="kaynak-@kat.Id-dolap" value="dolap" hidden>
+                        <label for="kaynak-@kat.Id-dolap">Dolabımdan</label>
+                    </div>
+
+                    <div class="products-grid magaza-listesi" id="liste-@kat.Id-magaza">
+                        @if (ViewBag.MagazaUrunleri != null)
+                        {
+                            foreach (var urun in (List<ClothingStore.Models.Urunler>)ViewBag.MagazaUrunleri)
+                            {
+                                if (!string.IsNullOrEmpty(urun.KategoriId) && urun.KategoriId.Split(',').Contains(kat.DbId))
+                                {
+                                    var resim = Url.Content("~/img/" + urun.ResimYolu?.Split(',')[0].Trim());
+                                    <div class="card-item urun-sec" data-id="@urun.UrunId" data-tur="magaza" data-kategori="@kat.Id" data-fiyat="@urun.Fiyat" data-resim="@resim">
+                                        <img src="@resim" onerror="this.src='/img/varsayilan.png';">
+                                        <h3>@urun.UrunAdi</h3>
+                                        <div class="card-price">@urun.Fiyat.ToString("C2")</div>
+                                        <div class="secim-katmani"><i class="fa fa-check-circle text-white fa-3x"></i></div>
+                                    </div>
+                                }
+                            }
+                        }
+                    </div>
+
+                    <div class="products-grid dolap-listesi d-none" id="liste-@kat.Id-dolap">
+                        @if (ViewBag.KisiselDolap != null)
+                        {
+                            foreach (var dolap in (List<ClothingStore.Models.Dolap>)ViewBag.KisiselDolap)
+                            {
+                                if (dolap.KategoriId.ToString() == kat.DbId)
+                                {
+                                    var resim = "/img/" + (dolap.ResimYolu?.Split(',')[0].Trim() ?? "varsayilan.png");
+                                    <div class="card-item urun-sec" data-id="@dolap.DolapId" data-tur="dolap" data-kategori="@kat.Id" data-fiyat="0" data-resim="@resim">
+                                        <img src="@resim" onerror="this.src='/img/varsayilan.png';">
+                                        <h3>@dolap.UrunAdi</h3>
+                                        <div class="card-price">Dolabınızdan</div>
+                                        <div class="secim-katmani"><i class="fa fa-check-circle text-white fa-3x"></i></div>
+                                    </div>
+                                }
+                            }
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="right-panel">
+        <h2 style="font-size:26px; color:#ff4fa3; margin-bottom:15px;">Manken Görünümü</h2>
+        <input class="combo-name-input" placeholder="Kombin adı gir..." id="kombinAdi" value="@(Model?.KombinAdi ?? "")">
+
+        <div class="mannequin-box">
+            <div id="manken-dis" class="manken-parca" style="top:10px; left:10px; width:120px; height:180px; z-index:4;">Dış Giyim</div>
+            <div id="manken-ust" class="manken-parca" style="top:60px; left:20%; width:60%; height:40%; z-index:5;">Üst Giyim</div>
+            <div id="manken-alt" class="manken-parca" style="top:250px; left:20%; width:60%; height:50%; z-index:3;">Alt Giyim</div>
+            <div id="manken-ayakkabi" class="manken-parca" style="bottom:25px; left:25%; width:50%; height:15%; z-index:2;">Ayakkabı</div>
+            <div id="manken-canta" class="manken-parca" style="top:300px; right:5%; width:25%; height:25%; z-index:6;">Çanta</div>
+            <div style="width:220px; height:450px; background: #ffe3ef; border-radius:110px; opacity:0.3; margin: 70px auto;"></div>
+        </div>
+
+        <div class="total-box-pink">
+            <span>Toplam</span>
+            <span id="toplamTutar">₺0,00</span>
+        </div>
+
+        <button class="btn-pink-main" id="btnSepeteGit">🛍 Tüm Kombini Sepete Ekle</button>
+
+        <div class="side-btns">
+            <button class="btn-secondary-pink" id="btnKombinKaydet">Kaydet</button>
+            <button class="btn-secondary-pink" style="background:#f1f1f1; color:#666;" onclick="window.location.href='/Kombin/Index'">Vazgeç</button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            let globalZIndex = 100;
+            let secilenUrunler = { ust: { id: null, fiyat: 0, tur: '' }, alt: { id: null, fiyat: 0, tur: '' }, dis: { id: null, fiyat: 0, tur: '' }, ayakkabi: { id: null, fiyat: 0, tur: '' }, canta: { id: null, fiyat: 0, tur: '' } };
+
+            $('.kaynak-sec').change(function() {
+                let kategori = $(this).attr('name').split('-')[1];
+                let secilen = $(this).val();
+                $(`#liste-${kategori}-magaza, #liste-${kategori}-dolap`).addClass('d-none');
+                $(`#liste-${kategori}-${secilen}`).removeClass('d-none');
+            });
+
+            $('.urun-sec').click(function () {
+                let card = $(this);
+                let id = card.data('id');
+                let tur = card.data('tur');
+                let kategori = card.data('kategori');
+                let fiyat = parseFloat(card.data('fiyat').toString().replace(',', '.'));
+                let resim = card.data('resim');
+                let mankenBolge = $(`#manken-${kategori}`);
+                let etiket = (kategori === 'ust' ? 'Üst Giyim' : kategori === 'alt' ? 'Alt Giyim' : kategori === 'dis' ? 'Dış Giyim' : kategori === 'ayakkabi' ? 'Ayakkabı' : 'Çanta');
+
+                if (secilenUrunler[kategori].id === id && secilenUrunler[kategori].tur === tur) {
+                    card.removeClass('secili');
+                    secilenUrunler[kategori] = { id: null, fiyat: 0, tur: '' };
+                    mankenBolge.html(etiket);
+                } else {
+                    $(`.urun-sec[data-kategori='${kategori}']`).removeClass('secili');
+                    card.addClass('secili');
+                    secilenUrunler[kategori] = { id: id, fiyat: fiyat, tur: tur };
+                    globalZIndex++;
+                    mankenBolge.css('z-index', globalZIndex);
+                    mankenBolge.html(`<img src="${resim}" style="width:100%; height:100%; object-fit:contain;" />`);
+                }
+                fiyatHesapla();
+            });
+
+            function fiyatHesapla() {
+                let toplam = 0;
+                for (let k in secilenUrunler) { toplam += secilenUrunler[k].fiyat; }
+                $('#toplamTutar').text('₺' + toplam.toLocaleString('tr-TR', { minimumFractionDigits: 2 }));
+            }
+
+            $('#btnKombinKaydet').click(function () {
+                let adi = $('#kombinAdi').val().trim();
+                if (!adi) { alert("Lütfen kombin ismi girin."); return; }
+                let magazaIds = []; let dolapIds = [];
+                for (let k in secilenUrunler) {
+                    if (secilenUrunler[k].id) {
+                        if (secilenUrunler[k].tur === 'magaza') magazaIds.push(secilenUrunler[k].id);
+                        else dolapIds.push(secilenUrunler[k].id);
+                    }
+                }
+                $.post('/Kombin/KombiniKaydet', { KombinAdi: adi, MagazaUrunIds: magazaIds, DolapUrunIds: dolapIds, KombinId: '@(Model?.KombinId ?? 0)' }, function (res) {
+                    if (res.success) { alert(res.message); window.location.href = '/Kombin/Index'; }
+                    else { alert(res.message); }
+                });
+            });
+
+            $('#btnSepeteGit').click(function() {
+                let adi = $('#kombinAdi').val().trim();
+                if (!adi) { alert("Lütfen kombin ismi girin."); return; }
+                let magazaIds = [];
+                for (let k in secilenUrunler) {
+                    if (secilenUrunler[k].id && secilenUrunler[k].tur === 'magaza') magazaIds.push(secilenUrunler[k].id);
+                }
+                $.post('/Kombin/KaydetVeSepeteGit', { KombinAdi: adi, MagazaUrunIds: magazaIds, DolapUrunIds: [] }, function(res) {
+                    if (res.success) { window.location.href = res.redirectUrl; }
+                    else { alert(res.message); }
+                });
+            });
+
+            @if (Model != null && Model.KombinDetaylari != null)
+            {
+                    @foreach (var detay in Model.KombinDetaylari)
+                    {
+                            var uId = detay.UrunId ?? detay.DolapId;
+                            var tur = detay.UrunId != null ? "magaza" : "dolap";
+                            var dbIdRaw = detay.UrunId != null ? detay.SitedekiUrun?.KategoriId : detay.DolaptakiUrun?.KategoriId?.ToString();
+                            var dbId = dbIdRaw?.Split(',')[0];
+                            if (!string.IsNullOrEmpty(dbId))
+                            {
+                                    var kKey = dbId == "1" ? "ust" : dbId == "2" ? "alt" : dbId == "3" ? "dis" : dbId == "4" ? "ayakkabi" : "canta";
+                                    <text>
+                                        if ("@tur" === "dolap") $(`#kaynak-@kKey-dolap`).prop('checked', true).trigger('change');
+                                        $(`.urun-sec[data-id='@uId'][data-tur='@tur'][data-kategori='@kKey']`).trigger('click');
+                                    </text>
+                            }
+                    }
+            }
+        });
+    </script>
+}

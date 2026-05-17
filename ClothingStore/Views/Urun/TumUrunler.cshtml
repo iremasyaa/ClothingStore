@@ -1,0 +1,471 @@
+﻿@* =================================================================================================================
+ * DOSYA ADI: TumUrunler.cshtml (Gelişmiş Katalog ve Filtreleme Sayfası)
+ * AMACI: Sistemdeki tüm ürün envanterini; kategori, marka, beden ve renk bazlı çoklu filtreleme seçenekleriyle 
+ * birlikte sunar. Kullanıcının aradığı ürüne en hızlı şekilde ulaşmasını sağlayan ana keşif noktasıdır.
+ * * KULLANILAN TEKNOLOJİLER VE KÜTÜPHANELER:
+ * - Razor View Engine: 'List<Urunler>' modeli üzerinden dinamik veri dökümü ve QueryString tabanlı link üretimi.
+ * - JavaScript & LocalStorage: Sayfa yenilendiğinde veya geri gelindiğinde kullanıcının kaldığı yeri 
+ * hatırlayan 'scrollPos' (kaydırma belleği) mekanizması.
+ * - AJAX & jQuery: Beden seçim modalı içinde dinamik veri yükleme ve interaktif filtreleme tetikleyicileri.
+ * - CSS3 (Modern Grid UI): 'sticky' yan panel, özelleştirilmiş 'check-box' tasarımları ve neon pembe görsel dil.
+ * * TASARIM VE FONKSİYONEL DETAYLAR:
+ * 1. Akıllı Link Üretici: '@functions' bloğunda yer alan 'LinkUret' metodu ile mevcut filtreleri koruyarak 
+ * URL parametrelerini (QueryString) dinamik olarak yöneten profesyonel mantık yapısı.
+ * 2. Kaydırma Hafızası (Scroll Retention): 'save-scroll' sınıfı ve LocalStorage kullanımı sayesinde, bir 
+ * filtre seçildiğinde sayfanın en başa dönmesini engelleyerek kullanıcı odağını koruma özelliği.
+ * 3. Çok Yönlü Sıralama: Fiyat, tarih ve popülariteye göre veritabanı seviyesinde sıralama yapabilen, 
+ * seçilen sıralamayı diğer filtrelerle harmanlayan entegre seçici.
+ * 4. Dinamik Stok ve Varyant Gösterimi: Ürün kartları üzerinde ilk 3 bedeni anlık gösteren 'size-badge' yapısı 
+ * ve favori durumu (isFav) kontrolü ile kişiselleştirilmiş görünüm.
+ * 5. UX Standartları: Gelişmiş filtreleme yan paneli (Sidebar), 'text-truncate' ile görsel düzen koruması 
+ * ve 'BedenSecModalAc' fonksiyonu ile hızlı alışveriş akışı.
+ ================================================================================================================= *@
+
+@using ClothingStore.Models
+@model List<Urunler>
+
+@section Styles {
+    <style>
+        :root {
+            --p-lila: #FF1493; 
+            --ana-mor: #8a2be2; 
+            --canli-pembe: #FF1493; 
+            --arkaplan-pembe: #fff9fc; 
+        }
+
+        body {
+            background-color: var(--arkaplan-pembe) !important;
+        }
+
+        .filter-sidebar {
+            background: white;
+            border: none;
+            border-radius: 20px;
+            padding: 25px;
+            position: sticky;
+            top: 20px;
+            box-shadow: 0 10px 30px rgba(200, 162, 200, 0.1);
+        }
+
+        .filter-section {
+            border-bottom: 1px solid #fdf2f8;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+        }
+
+        .filter-title {
+            font-weight: 800;
+            font-size: 13px;
+            text-transform: uppercase;
+            color: var(--ana-mor);
+            margin-bottom: 12px;
+            display: block;
+            letter-spacing: 0.5px;
+        }
+
+        .filter-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 180px;
+            overflow-y: auto;
+        }
+
+        .filter-link {
+            text-decoration: none;
+            color: #666;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            padding: 5px 0;
+            transition: 0.2s;
+        }
+
+            .filter-link:hover {
+                color: var(--p-lila);
+            }
+
+        .check-box {
+            width: 17px;
+            height: 17px;
+            border: 2px solid #ffe1f0;
+            border-radius: 4px;
+            margin-right: 12px;
+            display: inline-block;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .active-f {
+            color: var(--ana-mor) !important;
+            font-weight: 700;
+        }
+
+            .active-f .check-box {
+                background: var(--p-lila);
+                border-color: var(--p-lila);
+            }
+
+                .active-f .check-box::after {
+                    content: '✓';
+                    color: white;
+                    position: absolute;
+                    font-size: 11px;
+                    left: 3px;
+                    top: -2px;
+                    font-weight: bold;
+                }
+
+        .product-card {
+            border: none !important;
+            border-radius: 20px;
+            transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            background: white;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.02);
+            overflow: hidden;
+        }
+
+            .product-card:hover {
+                box-shadow: 0 15px 30px rgba(200, 162, 200, 0.15);
+                transform: translateY(-8px);
+            }
+
+        .img-box {
+            height: 260px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+            background: #fff;
+        }
+
+            .img-box img {
+                max-height: 100%;
+                max-width: 100%;
+                object-fit: contain;
+            }
+
+        .card-body {
+            padding: 15px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            text-align: center;
+        }
+
+        .btn-gradient-lila {
+            background: linear-gradient(135deg, #FF69B4 0%, #8a2be2 100%);
+            color: white !important;
+            border: none;
+            font-weight: 800;
+            padding: 12px;
+            border-radius: 12px;
+            transition: 0.3s;
+            width: 100%;
+            text-align: center;
+            text-decoration: none;
+            display: block;
+            font-size: 13px;
+            box-shadow: 0 4px 12px rgba(138, 43, 226, 0.2);
+            cursor: pointer;
+        }
+
+            .btn-gradient-lila:hover {
+                filter: brightness(1.1);
+                transform: scale(1.02);
+                box-shadow: 0 6px 18px rgba(138, 43, 226, 0.3);
+            }
+
+        .price-text {
+            color: var(--ana-mor);
+            font-weight: 900;
+            font-size: 1.1rem;
+        }
+
+        .size-badge {
+            font-size: 10px;
+            background: var(--canli-pembe); 
+            color: white; 
+            border: none;
+            padding: 3px 7px;
+            border-radius: 6px;
+            margin-right: 2px;
+            font-weight: 800;
+            display: inline-block;
+            box-shadow: 0 2px 4px rgba(255, 20, 147, 0.2);
+        }
+
+        .fav-btn-circle {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 5;
+            background: white;
+            border-radius: 50%;
+            width: 35px;
+            height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            #modalSubmitBtn
+
+        {
+            background: linear-gradient(135deg, #FF69B4 0%, #8a2be2 100%) !important;
+            color: white !important;
+            border: none !important;
+            font-weight: 800 !important;
+            padding: 12px !important;
+            border-radius: 12px !important;
+            transition: 0.3s !important;
+            box-shadow: 0 4px 15px rgba(138, 43, 226, 0.2) !important;
+        }
+
+        #modalSubmitBtn:hover {
+            filter: brightness(1.1) !important;
+            transform: scale(1.02) !important;
+            box-shadow: 0 6px 20px rgba(138, 43, 226, 0.3) !important;
+        }
+
+        #modalBedenSelect {
+            border: 2px solid #fdf2f8 !important;
+            border-radius: 12px !important;
+            color: #8a2be2 !important;
+            font-weight: 600 !important;
+        }
+        }
+    </style>
+}
+
+@{
+    var kategoriler = ViewBag.Kategoriler as List<Kategoriler> ?? new List<Kategoriler>();
+    var markalar = ViewBag.Markalar as List<string> ?? new List<string>();
+    var bedenler = ViewBag.Bedenler as List<string> ?? new List<string>();
+    var renkler = ViewBag.Renkler as List<string> ?? new List<string>();
+    var favoriler = ViewBag.FavoriListesi as List<int> ?? new List<int>();
+    var siralama = Context.Request.Query["siralama"].ToString();
+}
+
+@functions {
+    public string LinkUret(string key, string value)
+    {
+        var query = Context.Request.Query.ToDictionary(k => k.Key, v => v.Value.ToString());
+        if (query.ContainsKey(key) && query[key] == value) { query.Remove(key); }
+        else { query[key] = value; }
+        var qBuilder = new System.Text.StringBuilder("?");
+        foreach (var item in query) { qBuilder.Append($"{item.Key}={item.Value}&"); }
+        return qBuilder.ToString().TrimEnd('&');
+    }
+}
+
+<div class="container mt-4 mb-5">
+    <div class="row">
+        <div class="col-lg-3">
+            <div class="filter-sidebar shadow-sm">
+                <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+                    <h6 class="m-0 fw-bold" style="color: var(--ana-mor)">FİLTRELE</h6>
+                    @if (Context.Request.Query.Count > 0)
+                    {
+                        <a href="/Urun/TumUrunler" class="text-danger small fw-bold text-decoration-none">Temizle</a>
+                    }
+                </div>
+
+                <div class="filter-section">
+                    <span class="filter-title">Kategori</span>
+                    <ul class="filter-list">
+                        @foreach (var k in kategoriler)
+                        {
+                            var isSel = ViewBag.SeciliKategori?.ToString() == k.KategoriId.ToString();
+                            <li class="filter-item">
+                                <a href="@LinkUret("kategoriId", k.KategoriId.ToString())" class="filter-link save-scroll @(isSel ? "active-f" : "")">
+                                    <span class="check-box"></span> @k.KategoriAdi
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                </div>
+
+                <div class="filter-section">
+                    <span class="filter-title">Marka</span>
+                    <ul class="filter-list">
+                        @foreach (var m in markalar)
+                        {
+                            var isSel = ViewBag.SeciliMarka?.ToString() == m;
+                            <li class="filter-item">
+                                <a href="@LinkUret("marka", m)" class="filter-link save-scroll @(isSel ? "active-f" : "")">
+                                    <span class="check-box"></span> @m
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                </div>
+
+                <div class="filter-section">
+                    <span class="filter-title">Beden</span>
+                    <ul class="filter-list">
+                        @foreach (var b in bedenler)
+                        {
+                            var isSel = ViewBag.SeciliBeden?.ToString() == b;
+                            <li class="filter-item">
+                                <a href="@LinkUret("beden", b)" class="filter-link save-scroll @(isSel ? "active-f" : "")">
+                                    <span class="check-box"></span> @b
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                </div>
+
+                <div class="filter-section">
+                    <span class="filter-title">Renk</span>
+                    <ul class="filter-list">
+                        @foreach (var r in renkler)
+                        {
+                            var isSel = ViewBag.SeciliRenk?.ToString() == r;
+                            <li class="filter-item">
+                                <a href="@LinkUret("renk", r)" class="filter-link save-scroll @(isSel ? "active-f" : "")">
+                                    <span class="check-box"></span> @r
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-9">
+            <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded-4 border-0 shadow-sm mb-4">
+                <span class="text-muted fw-bold">Toplam <span style="color: var(--canli-pembe)">@Model.Count</span> Ürün Listeleniyor</span>
+                <select class="form-select w-auto border-0 shadow-none fw-bold" style="color: var(--ana-mor); cursor: pointer;" onchange="localStorage.setItem('scrollPos', window.scrollY); window.location.href=this.value">
+                    <option value="@LinkUret("siralama", "")" selected="@(string.IsNullOrEmpty(siralama))">Önerilen Sıralama</option>
+                    <option value="@LinkUret("siralama", "cok_satanlar")" selected="@(siralama == "cok_satanlar")">Çok Satanlar</option>
+                    <option value="@LinkUret("siralama", "en_yeniler")" selected="@(siralama == "en_yeniler")">En Yeniler</option>
+                    <option value="@LinkUret("siralama", "fiyat_artan")" selected="@(siralama == "fiyat_artan")">En Düşük Fiyat</option>
+                    <option value="@LinkUret("siralama", "fiyat_azalan")" selected="@(siralama == "fiyat_azalan")">En Yüksek Fiyat</option>
+                    <option value="@LinkUret("siralama", "a_z")" selected="@(siralama == "a_z")">A'dan Z'ye</option>
+                    <option value="@LinkUret("siralama", "z_a")" selected="@(siralama == "z_a")">Z'den A'ya</option>
+                </select>
+            </div>
+
+            <div class="row row-cols-2 row-cols-md-3 row-cols-xl-4 g-4">
+                @foreach (var item in Model)
+                {
+                    <div class="col">
+                        <div class="card product-card">
+                            <div class="img-box position-relative">
+                                <a href="/Urun/Detay/@item.UrunId">
+                                    <img src="/img/@(item.ResimYolu?.Split(',')[0])" onerror="this.src='/img/no-image.png'">
+                                </a>
+                                @{
+                                    bool isFav = favoriler.Contains(item.UrunId);
+                                }
+                                <a href="/Account/FavoriEkleCikar?UrunId=@item.UrunId" class="fav-btn-circle text-decoration-none save-scroll">
+                                    <i class="@(isFav ? "fa-solid fa-heart text-danger" : "fa-regular fa-heart text-muted")"></i>
+                                </a>
+                            </div>
+                            <div class="card-body">
+                                <h6 class="small fw-bold text-truncate mb-1" style="color: #333;">@item.UrunAdi</h6>
+                                <p class="text-muted mb-2" style="font-size:11px;">
+                                    @item.Renk
+                                    @if (item.UrunBedenStok != null && item.UrunBedenStok.Any())
+                                    {
+                                        <span> | </span>
+                                        foreach (var stok in item.UrunBedenStok.Take(3))
+                                        {
+                                            <span class="size-badge">@stok.Beden?.BedenTanimi</span>
+                                        }
+                                    }
+                                </p>
+                                <div class="mt-auto">
+                                    <div class="price-text mb-2">@item.Fiyat.ToString("C2")</div>
+                                    <button type="button" class="btn-gradient-lila border-0" onclick="BedenSecModalAc(@item.UrunId)">🛒 SEPETE EKLE</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="bedenModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content shadow-lg" style="border-radius: 20px; border: none;">
+            <div class="modal-header border-0 text-center pb-0">
+                <h5 class="modal-title w-100 fw-bold" style="color: var(--deep-lila);">Beden Seçimi</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center pt-2">
+                <p class="small text-muted mb-3">Lütfen sepete eklemek istediğiniz seçeneği belirleyin:</p>
+
+                <form id="sepeteEkleForm" action="/Sepet/Ekle" method="get">
+                    <input type="hidden" name="UrunId" id="modalUrunId" value="" />
+
+                    <select class="form-select form-select-lg mb-3 shadow-sm border-0 bg-light fw-bold text-center" name="BedenId" id="modalBedenSelect" required>
+                    </select>
+
+                    <button type="submit" class="btn w-100 mt-3" style="background: linear-gradient(135deg, #ff7eb3 0%, #a770ef 100%); color: white !important; border: none; border-radius: 12px; padding: 10px; font-weight: bold; box-shadow: 0 4px 10px rgba(167, 112, 239, 0.3); transition: 0.3s;">
+                        <i class="fa fa-shopping-basket me-2"></i> SEPETE ONAYLA
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            var scrollPos = localStorage.getItem("scrollPos");
+            if (scrollPos) {
+                window.scrollTo(0, scrollPos);
+                localStorage.removeItem("scrollPos");
+            }
+
+            document.querySelectorAll('.save-scroll').forEach(function (element) {
+                element.addEventListener('click', function () {
+                    localStorage.setItem("scrollPos", window.scrollY);
+                });
+            });
+        });
+
+        function BedenSecModalAc(urunId) {
+
+            $('#modalUrunId').val(urunId);
+
+            var $select = $('#modalBedenSelect');
+            var $btn = $('#modalSubmitBtn');
+
+            $select.empty().append('<option value="" selected disabled>⏳ Bedenler Yükleniyor...</option>');
+            $btn.prop('disabled', true); 
+
+            $('#bedenModal').modal('show');
+
+            $.ajax({
+                url: '/Urun/UrunBedenleriGetir',
+                type: 'GET',
+                data: { urunId: urunId },
+                success: function (data) {
+                    $select.empty(); 
+
+                    if (data && data.length > 0) {
+                        $select.append('<option value="" selected disabled>Seçiniz...</option>');
+                        $.each(data, function (index, item) {
+                            $select.append('<option value="' + item.bedenId + '">' + item.bedenAdi + '</option>');
+                        });
+                        $btn.prop('disabled', false); 
+                    } else {
+                        $select.append('<option value="" selected disabled>❌ Stokta Yok</option>');
+                    }
+                },
+                error: function () {
+                    $select.empty().append('<option value="" selected disabled>⚠️ Bir hata oluştu</option>');
+                }
+            });
+        }
+    </script>
+}

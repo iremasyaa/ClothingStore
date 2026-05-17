@@ -1,0 +1,176 @@
+﻿@* =================================================================================================================
+ * DOSYA ADI: TumKategoriler.cshtml (Koleksiyonlar Sayfası)
+ * AMACI: Mağazadaki tüm ana ve alt kategorileri, kullanıcıya bir katalog mantığıyla sunan merkezi arayüzdür. 
+ * Emojilerle zenginleştirilmiş büyük kart yapısı sayesinde görsel navigasyon deneyimi sağlar.
+ * * KULLANILAN TEKNOLOJİLER VE KÜTÜPHANELER:
+ * - Razor View Engine: 'List<Kategoriler>' modeli üzerinden dinamik veri dökümü ve null-check (Model?.Count) yönetimi.
+ * - CSS3 Variables: ':root' üzerinden tanımlanan merkezi renk paleti (--p-lila, --ana-mor) ile tutarlı tema yönetimi.
+ * - Bootstrap 5 Grid: 'row-cols-2 row-cols-md-4' sınıfları ile cihaz bazlı dinamik sütun yerleşimi.
+ * - Font-Awesome 6: Kart içi yönlendirme ikonları ve genel ikonografi desteği.
+ * * TASARIM VE FONKSİYONEL DETAYLAR:
+ * 1. Dinamik Emoji Eşleştirme: 'EmojiBul' helper fonksiyonu ile kategori adlarındaki anahtar kelimelere (alt giyim, 
+ * ayakkabı, aksesuar vb.) göre otomatik görsel ataması yapan mantıksal motor.
+ * 2. Gelişmiş Mikro-Etkileşimler: Kart hover durumunda emoji üzerinde ölçekleme ve hafif döndürme (rotate) efekti 
+ * ile 'KEŞFET' butonundaki yatay hareket (translateX) kombinasyonu.
+ * 3. Dinamik Veri Sayacı: Sayfa başlığında o an sistemde aktif olan toplam kategori sayısını dinamik olarak gösteren badge yapısı.
+ * 4. Boş Veri Yönetimi: Veritabanında kategori bulunmadığı durumlarda kullanıcıyı karşılayan 'Henüz bir kategori 
+ * eklenmemiş' uyarı paneli ve yönlendirme metni.
+ * 5. UX Standartları: 24px köşe kavisli (border-radius) beyaz kartlar ve pastel arka plan (var(--arkaplan-pembe)) 
+ * ile oluşturulan temiz ve göz yormayan arayüz.
+ ================================================================================================================= *@
+
+@model List<ClothingStore.Models.Kategoriler>
+
+@{
+    ViewData["Title"] = "Tüm Kategoriler";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    string EmojiBul(string kategoriAdi)
+    {
+        if (string.IsNullOrEmpty(kategoriAdi)) return "🛍️";
+        string ad = kategoriAdi.ToLower(new System.Globalization.CultureInfo("tr-TR")).Trim();
+
+        if (ad.Contains("alt giyim") || ad.Contains("pantolon")) return "👖";
+        if (ad.Contains("ayakkabı") || ad.Contains("sneaker")) return "👟";
+        if (ad.Contains("bluz") || ad.Contains("tshirt") || ad.Contains("üst giyim")) return "👚";
+        if (ad.Contains("bot") || ad.Contains("çizme")) return "👢";
+        if (ad.Contains("ceket") || ad.Contains("dış giyim") || ad.Contains("mont") || ad.Contains("kaban")) return "🧥";
+        if (ad.Contains("çanta") || ad.Contains("bag")) return "👜";
+        if (ad.Contains("elbise") || ad.Contains("etek")) return "👗";
+        if (ad.Contains("aksesuar") || ad.Contains("takı")) return "✨";
+        if (ad.Contains("spor") || ad.Contains("gym")) return "🏃‍♀️";
+        if (ad.Contains("ev") || ad.Contains("pijama")) return "🛌";
+
+        return "🛍️";
+    }
+}
+
+<style>
+    :root {
+        --p-lila: #FF1493; 
+        --ana-mor: #8a2be2; 
+        --arkaplan-pembe: #fff9fc; 
+    }
+
+    body {
+        background-color: var(--arkaplan-pembe);
+    }
+
+    .cat-page-card {
+        background: #fff;
+        border: 2px solid #fff4f8;
+        border-radius: 24px;
+        padding: 40px 15px;
+        text-align: center;
+        transition: all 0.4s ease;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        box-shadow: 0 8px 25px rgba(255, 20, 147, 0.05);
+    }
+
+        .cat-page-card:hover {
+            border-color: var(--p-lila);
+            transform: translateY(-10px);
+            box-shadow: 0 15px 35px rgba(138, 43, 226, 0.12);
+        }
+
+    .cat-page-emoji {
+        font-size: 55px;
+        margin-bottom: 20px;
+        display: block;
+        transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .cat-page-card:hover .cat-page-emoji {
+        transform: scale(1.15) rotate(-5deg);
+    }
+
+
+    .cat-page-title {
+        font-weight: 800;
+        color: #333;
+        font-size: 18px;
+        margin-bottom: 15px;
+        letter-spacing: -0.2px;
+        transition: color 0.3s;
+    }
+
+    .cat-page-link {
+        font-size: 13px;
+        color: #aaa;
+        text-transform: uppercase;
+        font-weight: 800;
+        letter-spacing: 1.5px;
+        transition: color 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+    }
+
+        .cat-page-link i {
+            font-size: 10px;
+            transition: transform 0.3s;
+        }
+
+    .cat-page-card:hover .cat-page-title {
+        color: var(--ana-mor);
+    }
+
+    .cat-page-card:hover .cat-page-link {
+        color: var(--p-lila);
+    }
+
+        .cat-page-card:hover .cat-page-link i {
+            transform: translateX(5px);
+        }
+
+    a {
+        text-decoration: none !important;
+    }
+</style>
+
+<div class="container mt-5 mb-5 pt-4 pb-4">
+
+    <div class="d-flex justify-content-between align-items-end border-bottom pb-4 mb-5" style="border-color: #ffe1f0 !important;">
+        <div>
+            <h1 class="m-0" style="color:var(--p-lila); font-weight:900; letter-spacing:-0.5px; font-size:36px; text-transform:uppercase;">Koleksiyonlar</h1>
+            <p class="small mb-0" style="color:#666; font-weight:500; font-size:16px;">Stilinizi yansıtan kategoriyi seçin</p>
+        </div>
+        <div style="background:white; border:2px solid #ffe1f0; padding:8px 16px; border-radius:12px; font-weight:800; font-size:14px; color:var(--ana-mor); box-shadow:0 4px 10px rgba(0,0,0,0.02);">
+            @(Model?.Count ?? 0) Kategori Mevcut
+        </div>
+    </div>
+
+    @if (Model == null || Model.Count == 0)
+    {
+        <div class="text-center p-5 rounded-4 bg-white shadow-sm" style="border: 2px solid #fff4f8;">
+            <div class="display-1 text-muted mb-3">🔍</div>
+            <h4 class="text-secondary fw-bold">Henüz bir kategori eklenmemiş.</h4>
+            <p class="text-muted">Admin panelinden kategori ekleyerek başlayabilirsiniz.</p>
+        </div>
+    }
+    else
+    {
+        <div class="row row-cols-2 row-cols-md-4 row-cols-lg-5 g-4">
+            @foreach (var item in Model)
+            {
+                <div class="col">
+                    <a href="/Urun/TumUrunler?kategoriId=@item.KategoriId">
+                        <div class="cat-page-card">
+                            <span class="cat-page-emoji">@EmojiBul(item.KategoriAdi)</span>
+                            <span class="cat-page-title">@item.KategoriAdi</span>
+                            <span class="cat-page-link">
+                                KEŞFET <i class="fa fa-chevron-right"></i>
+                            </span>
+                        </div>
+                    </a>
+                </div>
+            }
+        </div>
+    }
+</div>

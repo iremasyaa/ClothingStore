@@ -1,0 +1,153 @@
+﻿@* =================================================================================================================
+ * DOSYA ADI: Markalar.cshtml (Admin Marka Yönetimi)
+ * AMACI: Sistemde yer alan giyim markalarının logolarıyla birlikte listelenmesini, yeni marka girişini, 
+ * mevcut markaların güncellenmesini ve silinmesini sağlayan yönetim arayüzüdür.
+ * * KULLANILAN TEKNOLOJİLER VE KÜTÜPHANELER:
+ * - Razor View Engine: 'List<Markalar>' modeli üzerinden döngüsel veri listeleme ve dinamik Modal ID üretimi.
+ * - Bootstrap 5: Grid sistemi, koyu tema uyumlu tablolar ve çoklu Modal (Düzenleme/Ekleme) yapılandırması.
+ * - Font-Awesome 6: İşlem butonları için kullanılan görsel semboller (fa-edit, fa-trash, fa-plus).
+ * - CSS3 (Dark Theme Architecture): Koyu arka plan (#111) ve neon pembe (#FF1493) vurgu renkli admin arayüzü.
+ * * TASARIM VE FONKSİYONEL DETAYLAR:
+ * 1. Dinamik Modal Yapısı: Her marka satırı için döngü içerisinde üretilen benzersiz ID'li (@item.MarkaId) 
+ * düzenleme modalları ile hedef veri odaklı işlem kabiliyeti.
+ * 2. Dosya Yönetimi: 'enctype="multipart/form-data"' kullanımı ile sunucuya marka logosu (dosya) gönderimi.
+ * 3. Asset Güvenliği: 'onerror' olay yöneticisi ile veritabanında yolu bulunan ancak fiziksel olarak 
+ * silinmiş resimlerin yerine 'no-image.png' gösterilmesi.
+ * 4. Kritik İşlem Onayı: Marka silme işlemi öncesinde 'Cascade Delete' (ilişkili ürünlerin silinmesi) 
+ * riskine karşı kullanıcıyı uyaran JavaScript onay mekanizması.
+ * 5. Görsel Standartlar: Marka logolarının beyaz arka plan ve 'object-fit:contain' özelliği ile 
+ * bozulmadan, standart ölçülerde (50x50px) sunulması.
+ ================================================================================================================= *@
+
+@model List<ClothingStore.Models.Markalar>
+@{
+    Layout = "~/Views/Shared/AdminLayout.cshtml";
+}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-white fw-bold">Marka Yönetimi</h2>
+        <button class="btn btn-turuncu" data-bs-toggle="modal" data-bs-target="#markaEkleModal">
+            <i class="fa fa-plus me-2"></i>Yeni Marka Ekle
+        </button>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card bg-dark border-secondary shadow">
+                <div class="card-body p-0">
+                    <table class="table table-dark table-hover mb-0">
+                        <thead>
+                            <tr class="text-turuncu border-bottom border-secondary">
+                                <th style="width: 80px;">ID</th>
+                                <th style="width: 100px;">Logo</th>
+                                <th>Marka Adı</th>
+                                <th class="text-center" style="width: 200px;">İşlemler</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model)
+                            {
+                                <tr>
+                                    <td class="align-middle">#@item.MarkaId</td>
+                                    <td class="align-middle">
+                                        <img src="/img/@item.MarkaResimYolu" style="width:50px; height:50px; object-fit:contain; background: white; border-radius:5px;" onerror="this.src='/img/no-image.png'">
+                                    </td>
+                                    <td class="align-middle fw-bold">@item.MarkaAdi</td>
+                                    <td class="text-center align-middle">
+                                        <button class="btn btn-sm btn-outline-info me-2" data-bs-toggle="modal" data-bs-target="#markaDuzenleModal@(item.MarkaId)">
+                                            <i class="fa fa-edit"></i> Düzenle
+                                        </button>
+                                        <a href="/Admin/MarkaSil/@item.MarkaId" class="btn btn-sm btn-outline-danger" onclick="return confirm('DİKKAT: Bu markayı silerseniz, bu markaya ait TÜM ÜRÜNLER de kalıcı olarak silinecektir! Yine de onaylıyor musunuz?')">
+                                            <i class="fa fa-trash"></i> Sil
+                                        </a>
+                                    </td>
+                                </tr>
+
+                                <div class="modal fade" id="markaDuzenleModal@(item.MarkaId)" tabindex="-1">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content bg-dark text-white border-turuncu">
+                                            <form action="/Admin/MarkaGuncelle" method="post" enctype="multipart/form-data">
+                                                <input type="hidden" name="MarkaId" value="@item.MarkaId" />
+                                                <div class="modal-header border-secondary">
+                                                    <h5 class="modal-title">Markayı Düzenle</h5>
+                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <div class="mb-3">
+                                                        <label class="form-label text-turuncu">Marka Adı</label>
+                                                        <input type="text" name="MarkaAdi" class="form-control bg-dark text-white border-secondary" value="@item.MarkaAdi" required>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label text-turuncu">Marka Logosu (İsteğe Bağlı)</label>
+                                                        <input type="file" name="resimDosyasi" class="form-control bg-dark text-white border-secondary">
+                                                        <div class="mt-2 small text-muted">Mevcut: @item.MarkaResimYolu</div>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer border-secondary">
+                                                    <button type="submit" class="btn btn-turuncu">Değişiklikleri Kaydet</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="markaEkleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-white border-turuncu">
+            <form action="/Admin/MarkaEkle" method="post" enctype="multipart/form-data">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title">Yeni Marka Ekle</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label text-turuncu">Marka Adı</label>
+                        <input type="text" name="MarkaAdi" class="form-control bg-dark text-white border-secondary" placeholder="Örn: Zara" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-turuncu">Marka Logosu</label>
+                        <input type="file" name="resimDosyasi" class="form-control bg-dark text-white border-secondary" required>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="submit" class="btn btn-turuncu w-100">Sisteme Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .btn-turuncu {
+        background-color: #FF1493;
+        color: white;
+        font-weight: bold;
+    }
+
+        .btn-turuncu:hover {
+            background-color: magenta;
+            color: white;
+        }
+
+    .text-turuncu {
+        color: #FF1493 !important;
+    }
+
+    .border-turuncu {
+        border: 1px solid #FF1493 !important;
+    }
+
+    .form-control:focus {
+        box-shadow: 0 0 0 0.25rem rgba(255, 96, 0, 0.25);
+        border-color: #FF1493;
+    }
+</style>

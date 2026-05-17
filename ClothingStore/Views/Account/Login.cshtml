@@ -1,0 +1,161 @@
+﻿@* =================================================================================================================
+ * DOSYA ADI: Login.cshtml (Kullanıcı Giriş Sayfası)
+ * AMACI: Müşterilerin sisteme güvenli bir şekilde kimlik doğrulaması yaparak giriş yapmalarını sağlar. 
+ * Kullanıcı deneyimini artırmak adına ana siteden izole, modern ve odaklanmış bir tasarım sunar.
+ * * KULLANILAN TEKNOLOJİLER VE KÜTÜPHANELER:
+ * - Razor View Engine: 'Kullanicilar' modeli entegrasyonu ve sunucu taraflı hata mesajlarının (ViewBag.Hata) yönetimi.
+ * - Bootstrap 5: Sayfanın mobil uyumlu (responsive) olması ve form bileşenlerinin düzenlenmesi.
+ * - CSS3 (Advanced Styling): 'linear-gradient' arka plan geçişleri ve etkileşimli (hover) buton animasyonları.
+ * - Font-Awesome 6: Görsel hiyerarşiyi destekleyen kullanıcı ve uyarı ikonlarının entegrasyonu.
+ * * TASARIM VE GÜVENLİK DETAYLARI:
+ * 1. Kimlik Doğrulama Süreci: Form verileri, AccountController içerisindeki 'Login' aksiyonuna HTTP POST ile gönderilir.
+ * 2. İzolasyon Stratejisi: 'Layout = null' kullanımı sayesinde sayfa, Header ve Footer gibi ana bileşenlerden arındırılmıştır.
+ * 3. Hata Yönetimi: 'alert-custom' sınıfı ile tasarlanmış dinamik blok, hatalı girişlerde kullanıcıya görsel geri bildirim sağlar.
+ * 4. UX Standardizasyonu: 'autocomplete="off"' ve 'input:focus' efektleri ile form güvenliği ve kullanım kolaylığı optimize edilmiştir.
+ * 5. Yönlendirme Bağlantıları: Kayıt olma (Register) ve ana sayfaya (Home/Index) hızlı dönüş linkleri ile navigasyon desteklenmiştir.
+ ================================================================================================================= *@
+
+@model ClothingStore.Models.Kullanicilar
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giriş Yap - ClothingStore </title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .login-page {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(to right, #ffe0ec, #ffc2d9);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .login-box {
+            background-color: white;
+            padding: 45px 40px;
+            width: 380px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+            border-top: 6px solid #c084fc;
+        }
+
+            .login-box h2 {
+                margin-bottom: 10px;
+                color: #a259ff;
+                font-weight: 800;
+            }
+
+            .login-box p {
+                color: #888;
+                margin-bottom: 25px;
+                font-size: 0.95rem;
+            }
+
+            .login-box form {
+                display: flex;
+                flex-direction: column;
+            }
+
+            .login-box input {
+                margin-bottom: 15px;
+                padding: 14px;
+                border: 2px solid #f3f3f3;
+                border-radius: 12px;
+                font-size: 14px;
+                outline: none;
+                transition: 0.3s;
+            }
+
+                .login-box input:focus {
+                    border-color: #c084fc;
+                    background-color: #fdfaff;
+                }
+
+            .login-box button {
+                background: linear-gradient(to right, #a259ff, #d6a4ff);
+                color: white;
+                border: none;
+                padding: 14px;
+                border-radius: 12px;
+                cursor: pointer;
+                font-size: 16px;
+                font-weight: bold;
+                transition: 0.3s;
+                margin-top: 10px;
+                box-shadow: 0 5px 15px rgba(162, 89, 255, 0.2);
+            }
+
+                .login-box button:hover {
+                    transform: scale(1.03);
+                    box-shadow: 0 8px 20px rgba(162, 89, 255, 0.3);
+                }
+
+        .login-links {
+            margin-top: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+            .login-links a {
+                text-decoration: none;
+                color: #8000ff;
+                font-size: 14px;
+                font-weight: 600;
+                transition: 0.3s;
+            }
+
+                .login-links a:hover {
+                    color: #a259ff;
+                    text-decoration: underline;
+                }
+
+        .alert-custom {
+            border-radius: 12px;
+            font-size: 0.85rem;
+            margin-bottom: 20px;
+            border: none;
+            background-color: #fff1f1;
+            color: #d90429;
+        }
+    </style>
+</head>
+<body class="login-page">
+
+    <div class="login-box">
+        <i class="fas fa-user-circle fa-3x mb-3" style="color: #d6a4ff;"></i>
+        <h2>Tekrar Merhaba!</h2>
+        <p>ClothingStore hesabına giriş yap.</p>
+
+        @if (ViewBag.Hata != null)
+        {
+            <div class="alert alert-danger alert-custom">
+                <i class="fas fa-exclamation-triangle me-2"></i> @ViewBag.Hata
+            </div>
+        }
+
+        <form action="/Account/Login" method="post" autocomplete="off">
+            <input type="email" name="email" placeholder="E-Posta Adresiniz" required autocomplete="off">
+            <input type="password" name="sifre" placeholder="Şifre" required autocomplete="current-password">
+
+            <button type="submit">Giriş Yap</button>
+        </form>
+
+        <div class="login-links">
+            <a href="/Account/Register">Henüz hesabın yok mu? Kayıt Ol</a>
+            <a href="/Home/Index" class="text-muted" style="font-weight: 400; font-size: 12px;">
+                <i class="fas fa-arrow-left me-1"></i> Mağazaya Dön
+            </a>
+        </div>
+    </div>
+
+</body>
+</html>

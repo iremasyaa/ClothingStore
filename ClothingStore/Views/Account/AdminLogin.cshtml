@@ -1,0 +1,115 @@
+﻿@* =================================================================================================================
+ * DOSYA ADI: AdminLogin.cshtml
+ * AMACI: Sistemin yönetim paneline erişim sağlayacak yetkili kullanıcılar için kimlik doğrulama arayüzünü sunar. 
+ * Güvenlik standartları gereği sitenin genel temasından bağımsız, sade ve korunaklı bir tasarım mimarisiyle kurgulanmıştır.
+ * * KULLANILAN TEKNOLOJİLER VE KÜTÜPHANELER:
+ * - Razor View Engine: Layout kullanımının devre dışı bırakılması (Layout = null) ve dinamik hata mesajlarının (ViewBag.Hata) işlenmesi.
+ * - Bootstrap 5: Grid sistemi ve bileşenler (Card, Input-Group) ile duyarlı (responsive) tasarım.
+ * - Font-Awesome 6: Kullanıcı deneyimini güçlendiren görsel ikon entegrasyonu.
+ * - Custom CSS: Koyu tema (Dark Mode) odaklı özelleştirilmiş bileşenler ve odaklanma (focus) efektleri.
+ * * TASARIM VE GÜVENLİK DETAYLARI:
+ * 1. Kimlik Doğrulama: Form verileri '/Account/Login' metoduna POST edilerek sunucu tarafında doğrulanır.
+ * 2. Kullanıcı Deneyimi: Yanlış giriş denemelerinde ViewBag üzerinden dönen uyarı mesajları, formun altında dinamik olarak gösterilir.
+ * 3. Arayüz Mantığı: Layout = null tanımlaması ile sayfa, sitenin ana şablonundan (Header/Footer) tamamen izole edilmiştir.
+ * 4. Görsel Hiyerarşi: 'user-shield' ikonu ve belirgin giriş butonu ile sayfanın yönetimsel amacı vurgulanmıştır.
+ ================================================================================================================= 
+*@
+
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8" />
+    <title>Yönetici Girişi</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #000;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .login-card {
+            background-color: #111;
+            width: 400px;
+            padding: 40px;
+            border: 1px solid #333;
+            border-top: 5px solid #FF1493;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(200, 162, 200, 0.1);
+        }
+
+        .form-control {
+            background-color: #222;
+            border: 1px solid #333;
+            color: white;
+        }
+
+            .form-control:focus {
+                background-color: #222;
+                color: white;
+                border-color: #FF1493;
+                box-shadow: 0 0 5px rgba(200, 162, 200, 0.5);
+            }
+
+        .btn-admin {
+            background-color: #FF1493;
+            color: white;
+            font-weight: bold;
+            border: none;
+            transition: 0.3s;
+        }
+
+            .btn-admin:hover {
+                background-color: #FF1493;
+                color: white;
+            }
+
+        .text-lila {
+            color: #FF1493;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card text-center">
+        <i class="fa fa-user-shield fa-4x text-lila mb-3"></i>
+        <h3 class="text-white fw-bold mb-1">Yönetici Paneli</h3>
+        <p class="text-secondary small mb-4">Yetkili hesap girişi</p>
+
+        <form action="/Account/Login" method="post">
+            <div class="mb-3 text-start">
+                <label class="text-secondary small">Admin E-Posta</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-dark border-secondary text-secondary"><i class="fa fa-envelope"></i></span>
+                    <input type="email" name="email" class="form-control shadow-none" required>
+                </div>
+            </div>
+            <div class="mb-4 text-start">
+                <label class="text-secondary small">Şifre</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-dark border-secondary text-secondary"><i class="fa fa-lock"></i></span>
+
+                    <input type="password" name="sifre" class="form-control shadow-none" required>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-admin w-100 py-2 mb-3">GÜVENLİ GİRİŞ</button>
+
+            @if (ViewBag.Hata != null)
+            {
+                <div class="alert alert-danger py-2 small bg-dark border-danger text-danger">
+                    <i class="fa fa-exclamation-circle me-1"></i> @ViewBag.Hata
+                </div>
+            }
+
+            <a href="/Home/Index" class="text-secondary small text-decoration-none"><i class="fa fa-arrow-left me-1"></i>Siteye Dön</a>
+        </form>
+    </div>
+</body>
+</html>

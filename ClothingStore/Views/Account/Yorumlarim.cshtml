@@ -1,0 +1,315 @@
+﻿@* =================================================================================================================
+ * DOSYA ADI: Yorumlarim.cshtml
+ * AMACI: Kullanıcının mağaza üzerindeki ürünlere yaptığı tüm değerlendirmeleri ve yorumları tek bir noktadan 
+ * izlemesini, düzenlemesini veya silmesini sağlayan yönetim arayüzüdür.
+ * * KULLANILAN TEKNOLOJİLER VE KÜTÜPHANELER:
+ * - Razor View Engine: 'List<Yorumlar>' modeli üzerinden dinamik veri listeleme ve onay durum kontrolü.
+ * - AJAX & jQuery: Sayfa yenilenmeden yorum detaylarını getirme (GET) ve güncelleme (POST) işlemleri.
+ * - Bootstrap 5 Modal: Yorum düzenleme işlemleri için kullanıcı deneyimini kesmeyen asenkron form yapısı.
+ * - Font-Awesome 6: Dinamik yıldız puanlama sistemi ve işlem ikonlarının (Edit/Delete) entegrasyonu.
+ * * TASARIM VE FONKSİYONEL DETAYLAR:
+ * 1. İnteraktif Puanlama: Modal içerisindeki yıldızların üzerine tıklandığında JQuery ile tetiklenen görsel puanlama mantığı.
+ * 2. Onay Mekanizması Takibi: Admin onayından geçen (Yayında) ve bekleyen (Onay Bekliyor) yorumların renk kodlarıyla ayrıştırılması.
+ * 3. Akıllı Veri İşleme: Uzun yorum metinlerinin tablo düzenini bozmaması için uygulanan 'max-width' kısıtlaması.
+ * 4. Güvenli Silme: 'confirm' metodu ile yanlışlıkla yorum silinmesini engelleyen kullanıcı onay mekanizması.
+ * 5. Tasarım Uyumu: Mor (#8a2be2) ve Pembe (#ff4fa3) vurgu renkleriyle sitenin genel "Soft-Pink" temasına tam uyum.
+ ================================================================================================================= *@
+
+@model List<ClothingStore.Models.Yorumlar>
+
+@{
+    ViewData["Title"] = "Yorumlarım";
+}
+
+<style>
+    .orders-page {
+        padding: 20px;
+        background: #fff;
+        border-radius: 15px;
+    }
+
+    .orders-title-box {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 30px;
+        background: #fff9fc;
+        padding: 20px;
+        border-radius: 12px;
+    }
+
+    .orders-icon {
+        font-size: 32px;
+        background: #fff;
+        width: 60px;
+        height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    }
+
+    .orders-title-box h1 {
+        font-size: 24px;
+        margin: 0;
+        color: #ff4fa3; 
+        font-weight: 700;
+    }
+
+    .orders-title-box p {
+        margin: 0;
+        color: #777;
+        font-size: 14px;
+    }
+
+    /* Tablo Tasarımı */
+    .yorum-table-box {
+        overflow-x: auto;
+    }
+
+    .yorum-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+    }
+
+        .yorum-table thead th {
+            text-align: left;
+            padding: 15px;
+            background: #fdf2f8; 
+            color: #8a2be2; 
+            font-weight: 600;
+            font-size: 14px;
+            border-bottom: 2px solid #ff4fa3; 
+        }
+
+        .yorum-table tbody td {
+            padding: 20px 15px;
+            border-bottom: 1px solid #eee;
+            vertical-align: middle;
+            font-size: 14px;
+            color: #444;
+        }
+
+    .yorum-stars {
+        color: #ff4fa3; 
+        font-size: 16px;
+        white-space: nowrap;
+    }
+
+    .yorum-status {
+        background: #ecfdf5;
+        color: #10b981;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+        .yorum-status.pending {
+            background: #fffbeb;
+            color: #f59e0b;
+        }
+
+    .yorum-edit {
+        background: #fff;
+        border: 1px solid #ddd;
+        padding: 6px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 13px;
+        transition: 0.3s;
+    }
+
+        .yorum-edit:hover {
+            background: #ff4fa3;
+            color: white;
+            border-color: #ff4fa3;
+        }
+
+    .yorum-delete {
+        background: #fff;
+        border: 1px solid #fee2e2;
+        color: #ef4444;
+        padding: 6px 10px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: 0.3s;
+    }
+
+        .yorum-delete:hover {
+            background: #ef4444;
+            color: white;
+        }
+
+    .star-edit {
+        font-size: 30px;
+        cursor: pointer;
+        color: #ddd;
+        transition: 0.2s;
+        margin: 0 2px;
+    }
+
+        .star-edit.selected {
+            color: #ff4fa3; 
+        }
+
+    .btn-save-custom {
+        background: #ff4fa3;
+        color: white;
+        border: none;
+        padding: 10px 25px;
+        border-radius: 10px;
+        font-weight: 600;
+    }
+</style>
+
+<section class="orders-page">
+    <div class="orders-title-box">
+        <div class="orders-icon">💬</div>
+        <div>
+            <h1>Yorumlarım</h1>
+            <p>Ürünlere yaptığınız yorumları buradan görüntüleyebilirsiniz.</p>
+        </div>
+    </div>
+
+    <div class="yorum-table-box">
+        @if (Model.Any())
+        {
+            <table class="yorum-table">
+                <thead>
+                    <tr>
+                        <th>Ürün Bilgisi</th>
+                        <th>Değerlendirme</th>
+                        <th>Yorumunuz</th>
+                        <th>Tarih</th>
+                        <th>Durum</th>
+                        <th>İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var yorum in Model)
+                    {
+                        <tr>
+                            <td>
+                                <strong style="color:#8a2be2;">@yorum.Urun?.UrunAdi</strong>
+                            </td>
+                            <td class="yorum-stars">
+                                @for (int i = 1; i <= 5; i++)
+                                {
+                                    <i class="fa-star @(i <= yorum.Puan ? "fa-solid" : "fa-regular")"></i>
+                                }
+                            </td>
+                            <td style="max-width: 300px;">@yorum.YorumMetni</td>
+                            <td>@(((DateTime)yorum.Tarih).ToString("dd.MM.yyyy"))</td>
+                            <td>
+                                @if (yorum.OnayDurumu == true)
+                                {
+                                    <span class="yorum-status">Yayında</span>
+                                }
+                                else
+                                {
+                                    <span class="yorum-status pending">Onay Bekliyor</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="d-flex gap-2">
+                                    <button class="yorum-edit" onclick="duzenleModaliAc(@yorum.YorumId)">
+                                        <i class="fa-solid fa-pen"></i> Düzenle
+                                    </button>
+                                    <a href="/Account/YorumSil/@yorum.YorumId" class="yorum-delete" onclick="return confirm('Silmek istediğine emin misin?')">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <div class="alert text-center p-5">
+                <p class="text-muted">Henüz hiç yorum yapmamışsınız.</p>
+                <a href="/" class="btn btn-sm btn-outline-primary">Alışverişe Başla</a>
+            </div>
+        }
+    </div>
+</section>
+
+<div class="modal fade" id="duzenleModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+            <div class="modal-header border-0 p-4">
+                <h5 class="modal-title fw-bold" style="color:#8a2be2;">Yorumu Güncelle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body px-4">
+                <input type="hidden" id="editYorumId" />
+
+                <div class="text-center mb-4">
+                    <div id="editStars">
+                        @for (int i = 1; i <= 5; i++)
+                        {
+                            <i class="fa-solid fa-star star-edit" data-value="@i"></i>
+                        }
+                    </div>
+                    <input type="hidden" id="editPuanValue" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold small text-muted">Mesajınız</label>
+                    <textarea id="editYorumMetni" class="form-control border-0 bg-light" rows="4" style="border-radius: 12px;"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer border-0 p-4">
+                <button type="button" class="btn btn-light px-4" style="border-radius: 10px;" data-bs-dismiss="modal">Vazgeç</button>
+                <button type="button" class="btn btn-save-custom shadow-sm" onclick="yorumKaydet()">Güncelle</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function duzenleModaliAc(id) {
+        $.get("/Account/YorumDetayGetir/" + id, function(data) {
+            $("#editYorumId").val(data.yorumId);
+            $("#editYorumMetni").val(data.yorumMetni);
+            updateStars(data.puan);
+            $("#duzenleModal").modal("show");
+        });
+    }
+
+    $(document).on("click", ".star-edit", function() {
+        var val = $(this).data("value");
+        updateStars(val);
+    });
+
+    function updateStars(val) {
+        $("#editPuanValue").val(val);
+        $(".star-edit").each(function() {
+            if ($(this).data("value") <= val) {
+                $(this).addClass("selected");
+            } else {
+                $(this).removeClass("selected");
+            }
+        });
+    }
+
+    function yorumKaydet() {
+        var data = {
+            YorumId: $("#editYorumId").val(),
+            YeniMetin: $("#editYorumMetni").val(),
+            YeniPuan: $("#editPuanValue").val()
+        };
+
+        $.post("/Account/YorumGuncelle", data, function(response) {
+            if (response.success) {
+                location.reload();
+            } else {
+                alert("Hata oluştu!");
+            }
+        });
+    }
+</script>

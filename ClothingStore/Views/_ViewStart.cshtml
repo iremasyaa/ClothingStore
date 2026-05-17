@@ -1,0 +1,27 @@
+﻿@* =================================================================================================================
+ * DOSYA ADI: _ViewStart.cshtml (Görünüm Başlatma Yapılandırması)
+ * AMACI: Uygulama genelindeki tüm Razor View (.cshtml) dosyaları için varsayılan bir şablon (Layout) 
+ * tanımlar. Her sayfanın başında manuel olarak şablon belirtme zorunluluğunu ortadan kaldırarak 
+ * merkezi bir tasarım yönetimi sağlar.
+ * * KULLANILAN TEKNOLOJİLER VE BİLEŞENLER:
+ * - Razor View Engine: Görünümlerin render edilmesi sürecindeki hiyerarşik başlangıç noktasıdır.
+ * - ASP.NET Core MVC: Projenin UI (Kullanıcı Arayüzü) standartlarını belirleyen altyapı.
+ * * TASARIM VE FONKSİYONEL DETAYLAR:
+ * 1. Global Şablon Ataması: 'Layout = "_Layout"' komutu ile, aksine bir komut verilmediği sürece 
+ * tüm sayfaların projenin ana iskelet şablonunu kullanmasını sağlar.
+ * 2. Kod Tekrarını Önleme (DRY Prensibi): Yüzlerce View dosyasının her birine tek tek layout 
+ * yolu yazmak yerine, bu işlemi tek bir merkezden yöneterek kodun temiz ve sürdürülebilir kalmasını sağlar.
+ * 3. Hiyerarşik Öncelik: Bu dosya Views klasörünün kökünde yer alarak tüm alt klasörleri etkiler; 
+ * ancak belirli bir sayfada farklı bir layout tanımlanırsa (örneğin Admin sayfaları), 
+ * o sayfanın kendi tanımı buradaki varsayılanı ezer (override).
+ * 4. Otomatik Yükleme: Razor motoru tarafından sayfa oluşturulma aşamasında ilk olarak bu dosya 
+ * okunur ve içeriği ilgili View'a enjekte edilir.
+ ================================================================================================================= *@
+
+@{
+    Layout = "_Layout";
+}
+
+@{
+    Layout = "_Layout";
+}

@@ -1,0 +1,332 @@
+﻿@* =================================================================================================================
+ * DOSYA ADI: Urunler.cshtml (Admin Ürün Yönetimi)
+ * AMACI: Mağazadaki tüm ürün envanterinin merkezi kontrol panelidir. Ürünlerin teknik detayları, fiyatlandırması, 
+ * stok takibi ve görsel içeriklerinin (CRUD işlemleri) profesyonelce yönetilmesini sağlar.
+ * * KULLANILAN TEKNOLOJİLER VE KÜTÜPHANELER:
+ * - Razor View Engine: 'List<Urunler>' modeli üzerinden koleksiyon tabanlı veri listeleme ve LINQ sorguları 
+ * yardımıyla virgülle ayrılmış kategori ID'lerinin isimlere dönüştürülmesi.
+ * - JavaScript (Input Processing): Fiyat girişlerinde yerel format (virgül) ile veritabanı formatı (nokta) 
+ * arasındaki dönüşümü sağlayan otomatik 'replace' mekanizması.
+ * - Bootstrap 5: 'Modal-LG' bileşenleri ile çok sütunlu form yerleşimi ve 'Dark Mode' odaklı UI tasarımı.
+ * - Font-Awesome 6: CRUD operasyonlarını sembolize eden statik ve interaktif ikon entegrasyonu.
+ * * TASARIM VE FONKSİYONEL DETAYLAR:
+ * 1. Dinamik Kategori Eşleştirme: Veritabanında string olarak tutulan KategoriId'lerin 'Split' edilerek 
+ * ViewBag üzerinden gelen ana kategori listesiyle asenkron bir şekilde eşleştirilmesi ve isimlerin gösterimi.
+ * 2. Gelişmiş Dosya Yönetimi: 'enctype="multipart/form-data"' protokolü ile ürün görsellerinin sunucuya güvenli 
+ * transferi ve 'object-fit:cover' ile standartlaştırılmış önizleme sistemi.
+ * 3. UX Optimizasyonu: Fiyat girişleri için tasarlanan özel CSS ve JS kuralları ile hatalı veri girişinin 
+ * (spin-button gizleme vb.) engellenmesi.
+ * 4. Görsel Kimlik: Koyu tema üzerine uygulanan 'Hot Pink' (#FF1493) vurgu rengiyle operasyonel butonlar 
+ * ve kritik başlıklar (fiyat, stok) belirginleştirilmiştir.
+ * 5. Veri Güvenliği: Silme işlemleri için eklenen JavaScript 'confirm' katmanı ile yanlışlıkla veri kaybı 
+ * yaşanmasının önüne geçilmiştir.
+ ================================================================================================================= *@
+
+@model List<ClothingStore.Models.Urunler>
+@{
+    Layout = "~/Views/Shared/AdminLayout.cshtml";
+    var kategoriler = (ViewBag.Kategoriler as List<ClothingStore.Models.Kategoriler>) ?? new List<ClothingStore.Models.Kategoriler>();
+    var markalar = (ViewBag.Markalar as List<ClothingStore.Models.Markalar>) ?? new List<ClothingStore.Models.Markalar>();
+}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-white fw-bold">Ürün Yönetimi</h2>
+        <button class="btn btn-pembe" data-bs-toggle="modal" data-bs-target="#urunEkleModal">
+            <i class="fa fa-plus me-2"></i>Yeni Ürün Ekle
+        </button>
+    </div>
+
+    <div class="card bg-dark border-secondary shadow">
+        <div class="card-body p-0">
+            <table class="table table-dark table-hover mb-0">
+                <thead>
+                    <tr class="text-pembe border-bottom border-secondary">
+                        <th>ID</th>
+                        <th>Resim</th>
+                        <th>Ürün Adı</th>
+                        <th>Kategori</th>
+                        <th>Marka</th>
+                        <th>Fiyat</th>
+                        <th>Stok</th>
+                        <th class="text-center">İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td class="align-middle">#@item.UrunId</td>
+                            <td class="align-middle">
+                                @{
+                                    var ilkResim = "";
+                                    if (!string.IsNullOrEmpty(item.ResimYolu))
+                                    {
+                                        ilkResim = item.ResimYolu.Split(',')[0];
+                                    }
+                                }
+                                <img src="/img/@ilkResim" style="width:50px; height:50px; object-fit:cover; border-radius:5px;" onerror="this.src='/img/no-image.png'">
+                            </td>
+                            <td class="align-middle fw-bold">@item.UrunAdi</td>
+                            <td class="align-middle">
+                                @{
+                                    var urunKatIds = item.KategoriId?.Split(',', StringSplitOptions.RemoveEmptyEntries) ?? Array.Empty<string>();
+                                    var katIsimleri = kategoriler.Where(k => urunKatIds.Any(id => id.Trim() == k.KategoriId.ToString())).Select(k => k.KategoriAdi);
+                                    var sonucKategori = string.Join(", ", katIsimleri);
+                                }
+                                @if (!string.IsNullOrEmpty(sonucKategori))
+                                {
+                                    <span>@sonucKategori</span>
+                                }
+                                else
+                                {
+                                    <span class="text-white-50 small text-muted">Kategori Yok</span>
+                                }
+                            </td>
+                            <td class="align-middle">@(item.Marka?.MarkaAdi ?? "---")</td>
+                            <td class="align-middle text-pembe fw-bold">@item.Fiyat.ToString("C2")</td>
+                            <td class="align-middle">@item.StokAdedi</td>
+                            <td class="text-center align-middle">
+                                <button class="btn btn-sm btn-outline-info me-1" data-bs-toggle="modal" data-bs-target="#urunDuzenleModal@(item.UrunId)">
+                                    <i class="fa fa-edit"></i>
+                                </button>
+                                <a href="/Admin/UrunSil/@item.UrunId" class="btn btn-sm btn-outline-danger" onclick="return confirm('Bu ürünü silmek istediğinize emin misiniz?')">
+                                    <i class="fa fa-trash"></i>
+                                </a>
+                            </td>
+                        </tr>
+
+                        <div class="modal fade" id="urunDuzenleModal@(item.UrunId)" tabindex="-1">
+                            <div class="modal-dialog modal-lg">
+                                <div class="modal-content bg-dark text-white border-pembe">
+                                    <form action="/Admin/UrunGuncelle" method="post" enctype="multipart/form-data">
+                                        <input type="hidden" name="UrunId" value="@item.UrunId" />
+                                        <div class="modal-header border-secondary">
+                                            <h5 class="modal-title">Ürün Düzenle: @item.UrunAdi</h5>
+                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="row g-3">
+                                                <div class="col-md-6">
+                                                    <label class="form-label small text-pembe">Ürün Adı</label>
+                                                    <input type="text" name="UrunAdi" class="form-control bg-dark text-white border-secondary" value="@item.UrunAdi" required>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label small text-pembe">Fiyat</label>
+                                                    <input type="text" name="Fiyat" class="form-control bg-dark text-white border-secondary fiyat-input" value="@item.Fiyat.ToString("N2")" required>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label small text-pembe">Stok Adedi</label>
+                                                    <input type="number" name="StokAdedi" class="form-control bg-dark text-white border-secondary" value="@item.StokAdedi">
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label small text-pembe">Kategori</label>
+                                                    <select name="KategoriId" class="form-select bg-dark text-white border-secondary">
+                                                        <option value="">Seçiniz...</option>
+                                                        @foreach (var k in kategoriler)
+                                                        {
+                                                            <option value="@k.KategoriId" selected="@(urunKatIds.Contains(k.KategoriId.ToString()))">@k.KategoriAdi</option>
+                                                        }
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label small text-pembe">Marka</label>
+                                                    <select name="MarkaId" class="form-select bg-dark text-white border-secondary">
+                                                        <option value="">Seçiniz...</option>
+                                                        @foreach (var m in markalar)
+                                                        {
+                                                            <option value="@m.MarkaId" selected="@(item.MarkaId == m.MarkaId)">@m.MarkaAdi</option>
+                                                        }
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label small text-pembe">Mevsim</label>
+                                                    <select name="Mevsim" class="form-select bg-dark text-white border-secondary">
+                                                        <option value="Yazlık" selected="@(item.Mevsim == "Yazlık")">Yazlık</option>
+                                                        <option value="Kışlık" selected="@(item.Mevsim == "Kışlık")">Kışlık</option>
+                                                        <option value="Bahar" selected="@(item.Mevsim == "Bahar")">Bahar</option>
+                                                        <option value="4 Mevsim" selected="@(item.Mevsim == "4 Mevsim")">4 Mevsim</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label small text-pembe">Renk</label>
+                                                    <select name="Renk" class="form-select bg-dark text-white border-secondary">
+                                                        <option value="" selected="@(string.IsNullOrEmpty(item.Renk))">Seçiniz...</option>
+                                                        <option value="Siyah" selected="@(item.Renk == "Siyah")">Siyah</option>
+                                                        <option value="Beyaz" selected="@(item.Renk == "Beyaz")">Beyaz</option>
+                                                        <option value="Kırmızı" selected="@(item.Renk == "Kırmızı")">Kırmızı</option>
+                                                        <option value="Mavi" selected="@(item.Renk == "Mavi")">Mavi</option>
+                                                        <option value="Yeşil" selected="@(item.Renk == "Yeşil")">Yeşil</option>
+                                                        <option value="Sarı" selected="@(item.Renk == "Sarı")">Sarı</option>
+                                                        <option value="Lacivert" selected="@(item.Renk == "Lacivert")">Lacivert</option>
+                                                        <option value="Pembe" selected="@(item.Renk == "Pembe")">Pembe</option>
+                                                        <option value="Gri" selected="@(item.Renk == "Gri")">Gri</option>
+                                                        <option value="Bej" selected="@(item.Renk == "Bej")">Bej</option>
+                                                        <option value="Kahverengi" selected="@(item.Renk == "Kahverengi")">Kahverengi</option>
+                                                        <option value="Çok Renkli" selected="@(item.Renk == "Çok Renkli")">Çok Renkli</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label small text-pembe">Kumaş Tipi</label>
+                                                    <input type="text" name="KumasTipi" class="form-control bg-dark text-white border-secondary" value="@item.KumasTipi">
+                                                </div>
+                                                <div class="col-12">
+                                                    <label class="form-label small text-pembe">Ürün Resmini Değiştir</label>
+                                                    <input type="file" name="resimDosyasi" class="form-control bg-dark text-white border-secondary">
+                                                </div>
+                                                <div class="col-12">
+                                                    <label class="form-label small text-pembe">Açıklama</label>
+                                                    <textarea name="Aciklama" class="form-control bg-dark text-white border-secondary" rows="3">@item.Aciklama</textarea>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer border-secondary">
+                                            <button type="submit" class="btn btn-pembe">Değişiklikleri Kaydet</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="urunEkleModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark text-white border-pembe">
+            <form action="/Admin/UrunEkle" method="post" enctype="multipart/form-data">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title">Yeni Ürün Ekle</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small text-pembe">Ürün Adı</label>
+                            <input type="text" name="UrunAdi" class="form-control bg-dark text-white border-secondary" placeholder="Örn: Siyah Deri Ceket" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-pembe">Fiyat</label>
+                            <input type="text" name="Fiyat" class="form-control bg-dark text-white border-secondary fiyat-input" placeholder="0,00" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-pembe">Stok Adedi</label>
+                            <input type="number" name="StokAdedi" class="form-control bg-dark text-white border-secondary" placeholder="0">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-pembe">Kategori</label>
+                            <select name="KategoriId" class="form-select bg-dark text-white border-secondary" required>
+                                <option value="">Seçiniz...</option>
+                                @foreach (var k in kategoriler)
+                                {
+                                    <option value="@k.KategoriId">@k.KategoriAdi</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-pembe">Marka</label>
+                            <select name="MarkaId" class="form-select bg-dark text-white border-secondary" required>
+                                <option value="">Seçiniz...</option>
+                                @foreach (var m in markalar)
+                                {
+                                    <option value="@m.MarkaId">@m.MarkaAdi</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small text-pembe">Mevsim</label>
+                            <select name="Mevsim" class="form-select bg-dark text-white border-secondary">
+                                <option value="Yazlık">Yazlık</option>
+                                <option value="Kışlık">Kışlık</option>
+                                <option value="Bahar">Bahar</option>
+                                <option value="4 Mevsim">4 Mevsim</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small text-pembe">Renk</label>
+                            <select name="Renk" class="form-select bg-dark text-white border-secondary">
+                                <option value="">Seçiniz...</option>
+                                <option value="Siyah">Siyah</option>
+                                <option value="Beyaz">Beyaz</option>
+                                <option value="Kırmızı">Kırmızı</option>
+                                <option value="Mavi">Mavi</option>
+                                <option value="Yeşil">Yeşil</option>
+                                <option value="Sarı">Sarı</option>
+                                <option value="Lacivert">Lacivert</option>
+                                <option value="Pembe">Pembe</option>
+                                <option value="Gri">Gri</option>
+                                <option value="Bej">Bej</option>
+                                <option value="Kahverengi">Kahverengi</option>
+                                <option value="Çok Renkli">Çok Renkli</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small text-pembe">Kumaş Tipi</label>
+                            <input type="text" name="KumasTipi" class="form-control bg-dark text-white border-secondary">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small text-pembe">Ürün Resmi</label>
+                            <input type="file" name="resimDosyasi" class="form-control bg-dark text-white border-secondary" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small text-pembe">Açıklama</label>
+                            <textarea name="Aciklama" class="form-control bg-dark text-white border-secondary" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="submit" class="btn btn-pembe w-100">Ürünü Sisteme Ekle</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.querySelectorAll('form').forEach(form => {
+        form.addEventListener('submit', function () {
+            let fiyatInput = this.querySelector('.fiyat-input');
+            if (fiyatInput) {
+                fiyatInput.value = fiyatInput.value.replace(',', '.');
+            }
+        });
+    });
+</script>
+
+<style>
+    .btn-pembe {
+        background-color: #FF1493;
+        color: white;
+        font-weight: bold;
+    }
+
+        .btn-pembe:hover {
+            background-color: #FF69B4; 
+            color: white;
+        }
+
+    .text-pembe {
+        color: #FF1493 !important;
+    }
+
+    .border-pembe {
+        border-color: #FF1493 !important;
+    }
+
+    .form-control:focus, .form-select:focus {
+        box-shadow: 0 0 0 0.25rem rgba(255, 20, 147, 0.25); 
+        border-color: #FF1493;
+    }
+
+    .fiyat-input::-webkit-outer-spin-button, .fiyat-input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    .fiyat-input {
+        -moz-appearance: textfield;
+    }
+</style>

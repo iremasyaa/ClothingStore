@@ -1,0 +1,239 @@
+﻿@* =================================================================================================================
+ * DOSYA ADI: Uyeler.cshtml (Admin Üye Yönetimi)
+ * AMACI: Sisteme kayıtlı tüm kullanıcıların (Müşteri, Admin, Tedarikçi) merkezi olarak listelenmesini, 
+ * yeni üye kaydını ve üye bilgilerinin detaylı olarak incelenip yönetilmesini sağlar.
+ * * KULLANILAN TEKNOLOJİLER VE KÜTÜPHANELER:
+ * - Razor View Engine: 'List<Kullanicilar>' modeli üzerinden dinamik veri listeleme ve Rol bazlı koşullu renklendirme.
+ * - Bootstrap 5: Grid sistemi (row/col) ile iki sütunlu (Liste ve Hızlı Kayıt) yerleşim ve interaktif Modal yapısı.
+ * - Font-Awesome 6: İletişim bilgileri ve yetki gruplarını temsil eden sembolik ikon setleri.
+ * - CSS3 (Custom UI): Kullanıcı baş harflerinden oluşan otomatik avatarlar ve neon pembe (#FF1493) vurgulu koyu tema.
+ * * TASARIM VE FONKSİYONEL DETAYLAR:
+ * 1. Hızlı Kayıt Paneli: 'sticky-top' özelliği ile sayfa kaydırılsa dahi sabit kalan, yöneticiye hızlı üye ekleme imkanı sunan sağ sütun.
+ * 2. Dinamik Profil Kartları: Her üye için ID bazlı üretilen Modallar aracılığıyla adres, kayıt tarihi ve iletişim detaylarının sunumu.
+ * 3. Yetki Seviye Gösterimi: 'Admin', 'Firma' ve 'Uye' rollerinin farklı badge renkleriyle görsel olarak ayrıştırılması.
+ * 4. Güvenlik ve Veri Bütünlüğü: Üye silme işlemi öncesinde; sipariş, sepet ve favori verilerinin de silineceğine dair kritik 'confirm' uyarısı.
+ * 5. Kullanıcı Deneyimi (UX): 'avatar-circle' yapısı ile görselsiz profillerde dahi şık ve kurumsal bir görünümün korunması.
+ ================================================================================================================= *@
+
+@model List<ClothingStore.Models.Kullanicilar>
+@{
+    Layout = "~/Views/Shared/AdminLayout.cshtml";
+}
+
+<div class="container-fluid py-4">
+    <div class="row g-4">
+        <div class="col-md-9">
+            <div class="d-flex align-items-center mb-4">
+                <div class="bg-turuncu p-2 rounded me-3 shadow">
+                    <i class="fa fa-users text-white fs-4"></i>
+                </div>
+                <h2 class="text-white fw-bold mb-0">Üye Yönetimi</h2>
+            </div>
+
+            <div class="card bg-dark border-secondary shadow-lg">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover align-middle mb-0">
+                            <thead class="text-turuncu border-bottom border-turuncu">
+                                <tr>
+                                    <th class="ps-4 py-3">Üye Bilgisi</th>
+                                    <th class="py-3">İletişim Bilgileri</th>
+                                    <th class="py-3">Yetki Seviyesi</th>
+                                    <th class="text-end pe-4 py-3">İşlemler</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-white-50">
+                                @foreach (var item in Model)
+                                {
+                                    <tr class="border-bottom border-secondary">
+                                        <td class="ps-4">
+                                            <div class="d-flex align-items-center">
+                                                <div class="avatar-circle me-3">@(item.Ad?.Substring(0, 1))</div>
+                                                <div>
+                                                    <div class="text-white fw-bold">@item.Ad @item.Soyad</div>
+                                                    <small class="text-muted">ID: #@item.KullaniciId</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="text-white-50 small"><i class="fa fa-envelope me-1 text-turuncu"></i> @item.Email</div>
+                                            <div class="text-white-50 small"><i class="fa fa-phone me-1 text-turuncu"></i> @(item.Telefon ?? "Girilmemiş")</div>
+                                        </td>
+                                        <td>
+                                            @if (item.Rol == "Admin")
+                                            {
+                                                <span class="badge bg-danger shadow-sm py-2 px-3"><i class="fa fa-shield-alt me-1"></i> Yönetici</span>
+                                            }
+                                            else if (item.Rol == "Firma")
+                                            {
+                                                <span class="badge bg-info text-dark shadow-sm py-2 px-3"><i class="fa fa-truck me-1"></i> Tedarikçi</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-primary shadow-sm py-2 px-3"><i class="fa fa-user me-1"></i> Müşteri</span>
+                                            }
+                                        </td>
+                                        <td class="text-end pe-4">
+                                            <div class="btn-group shadow-sm">
+                                                <button class="btn btn-sm btn-outline-warning border-0"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#uyeModal-@item.KullaniciId"
+                                                        title="Detayları Gör">
+                                                    <i class="fa fa-eye fs-5"></i>
+                                                </button>
+                                                <a href="/Admin/UyeSil/@item.KullaniciId" class="btn btn-sm btn-outline-danger"
+                                                   onclick="return confirm('DİKKAT: Bu üyeyi silerseniz; üyenin geçmiş siparişleri, sepeti, favorileri ve kombinleri dahil her şeyi kalıcı olarak silinecektir! İşlemi onaylıyor musunuz?')">
+                                                    <i class="fa fa-trash"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                    <div class="modal fade" id="uyeModal-@item.KullaniciId" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog modal-dialog-centered">
+                                            <div class="modal-content bg-dark text-white border-turuncu border-2">
+                                                <div class="modal-body p-5 text-center">
+                                                    <div class="position-relative d-inline-block mb-4">
+                                                        <i class="fa fa-user-circle fa-5x text-turuncu"></i>
+                                                        <span class="position-absolute bottom-0 end-0 badge rounded-pill bg-success border border-dark border-2">Aktif</span>
+                                                    </div>
+
+                                                    <h3 class="fw-bold mb-1">@item.Ad @item.Soyad</h3>
+                                                    <p class="text-turuncu mb-4 fw-bold">@item.Rol?.ToUpper() HESABI</p>
+
+                                                    <div class="row g-3 text-start bg-secondary bg-opacity-10 p-4 rounded-3 border border-secondary">
+                                                        <div class="col-12">
+                                                            <small class="text-turuncu fw-bold d-block mb-1">E-POSTA ADRESİ</small>
+                                                            <div class="text-white">@item.Email</div>
+                                                        </div>
+                                                        <div class="col-12">
+                                                            <small class="text-turuncu fw-bold d-block mb-1">TELEFON</small>
+                                                            <div class="text-white">@(item.Telefon ?? "Belirtilmemiş")</div>
+                                                        </div>
+                                                        <div class="col-12">
+                                                            <small class="text-turuncu fw-bold d-block mb-1">TESLİMAT ADRESİ</small>
+                                                            <div class="text-white small">@(item.Adres ?? "Adres bilgisi girilmemiş.")</div>
+                                                        </div>
+                                                        <div class="col-12 border-top border-secondary pt-2 mt-3">
+                                                            <div class="d-flex justify-content-between">
+                                                                <small class="text-muted">Kayıt Tarihi:</small>
+                                                                <small class="text-white">@item.KayitTarihi?.ToString("dd MMMM yyyy")</small>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <button type="button" class="btn btn-warning w-100 mt-4 fw-bold py-2 shadow" data-bs-dismiss="modal">PENCEREYİ KAPAT</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="sticky-top" style="top: 20px;">
+                <div class="card bg-dark text-white border-turuncu shadow-lg overflow-hidden">
+                    <div class="card-header bg-turuncu py-3 border-0">
+                        <h5 class="mb-0 fw-bold text-white"><i class="fa fa-user-plus me-2"></i>Yeni Üye Kaydı</h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <form action="/Admin/UyeEkle" method="post">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="text-turuncu small fw-bold mb-1">AD</label>
+                                    <input type="text" name="Ad" class="form-control bg-secondary text-white border-0 py-2" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="text-turuncu small fw-bold mb-1">SOYAD</label>
+                                    <input type="text" name="Soyad" class="form-control bg-secondary text-white border-0 py-2" required>
+                                </div>
+                                <div class="col-12">
+                                    <label class="text-turuncu small fw-bold mb-1">E-POSTA</label>
+                                    <input type="email" name="Email" class="form-control bg-secondary text-white border-0 py-2" required>
+                                </div>
+                                <div class="col-12">
+                                    <label class="text-turuncu small fw-bold mb-1">TELEFON</label>
+                                    <input type="text" name="Telefon" class="form-control bg-secondary text-white border-0 py-2" placeholder="05xx xxx xx xx">
+                                </div>
+                                <div class="col-12">
+                                    <label class="text-turuncu small fw-bold mb-1">ŞİFRE</label>
+                                    <input type="password" name="Sifre" class="form-control bg-secondary text-white border-0 py-2" required>
+                                </div>
+                                <div class="col-12">
+                                    <label class="text-turuncu small fw-bold mb-1">YETKİ GRUBU</label>
+                                    <select name="Rol" class="form-select bg-secondary text-white border-0 py-2">
+                                        <option value="Uye">Müşteri (Uye)</option>
+                                        <option value="Admin">Yönetici (Admin)</option>
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <label class="text-turuncu small fw-bold mb-1">ADRES</label>
+                                    <textarea name="Adres" class="form-control bg-secondary text-white border-0 py-2" rows="2" placeholder="Mahalle, Sokak, No..."></textarea>
+                                </div>
+                                <div class="col-12 mt-4">
+                                    <button type="submit" class="btn btn-warning w-100 fw-bold py-2 shadow-sm">
+                                        ÜYEYİ KAYDET
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .bg-turuncu {
+        background-color: #FF1493 !important;
+    }
+
+    .text-turuncu {
+        color: #FF1493 !important;
+    }
+
+    .border-turuncu {
+        border-color: #FF1493 !important;
+    }
+
+    .avatar-circle {
+        width: 40px;
+        height: 40px;
+        background-color: #3d3d3d;
+        color: #FF1493;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        font-weight: bold;
+        border: 2px solid #FF1493;
+    }
+
+    .btn-warning {
+        background-color: #FF1493;
+        border: none;
+        color: white;
+    }
+
+        .btn-warning:hover {
+            background-color: deeppink;
+            color: white;
+        }
+
+    .form-control:focus, .form-select:focus {
+        background-color: #444 !important;
+        color: white;
+        box-shadow: 0 0 0 0.25rem rgba(255, 96, 0, 0.25);
+        border: none;
+    }
+
+    .table-hover tbody tr:hover {
+        background-color: rgba(255, 96, 0, 0.05) !important;
+    }
+</style>

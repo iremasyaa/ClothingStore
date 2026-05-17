@@ -1,0 +1,107 @@
+﻿@* =================================================================================================================
+ * DOSYA ADI: Yorumlar.cshtml (Admin Yorum Yönetimi)
+ * AMACI: Müşteriler tarafından ürünlere yapılan geri bildirimlerin admin onay mekanizmasından geçirilmesini, 
+ * denetlenmesini ve gerektiğinde yayından kaldırılmasını veya silinmesini sağlar.
+ * * KULLANILAN TEKNOLOJİLER VE KÜTÜPHANELER:
+ * - Razor View Engine: 'List<Yorumlar>' modeli üzerinden koleksiyon verilerinin Grid (kart) yapısında sunulması.
+ * - Bootstrap 5: Dinamik kart (Card) yapısı, duyarlı yerleşim (col-md-6) ve durum belirteçleri (Badges).
+ * - Font-Awesome 6: Yorum puanlarını temsil eden yıldız ikonları ve yönetimsel buton ikonları.
+ * - CSS3 (Modern Dark UI): Koyu tema mimarisi ve hover durumunda neon pembe (#FF1493) vurgu efektleri.
+ * * TASARIM VE FONKSİYONEL DETAYLAR:
+ * 1. Onay Mekanizması: Yorumların 'OnayDurumu' özelliğine göre farklı renklerde (Success/Warning) 
+ * görsel geri bildirimler ve dinamik işlem butonları (Onayla/Onayı Kaldır).
+ * 2. Dinamik Puanlama Sistemi: Razor 'for' döngüsü kullanılarak veritabanındaki sayısal puan değerinin 
+ * görsel yıldız ikonlarına dönüştürülmesi.
+ * 3. Görsel Hiyerarşi: Kullanıcı ismi ve ürün adının vurgulandığı başlık alanı ile italik metin 
+ * formatında sunulan kullanıcı yorum içeriği.
+ * 4. UX Optimizasyonu: Kart tabanlı tasarım sayesinde yorumların gruplandırılması ve hover efekti 
+ * ile hangi yorum üzerinde işlem yapıldığının netleştirilmesi.
+ * 5. Veri Güvenliği: Kritik silme işlemleri için entegre edilmiş JavaScript 'confirm' onay katmanı.
+ ================================================================================================================= *@
+
+@model List<ClothingStore.Models.Yorumlar>
+@{
+    Layout = "~/Views/Shared/AdminLayout.cshtml";
+}
+
+<div class="container-fluid">
+    <h2 class="text-white mb-4"><i class="fa fa-comments text-turuncu me-2"></i> Yorum Yönetimi</h2>
+
+    <div class="row">
+        @if (Model == null || !Model.Any())
+        {
+            <div class="col-12">
+                <div class="alert alert-info bg-dark text-white border-secondary text-center">
+                    <i class="fa fa-info-circle me-2"></i> Henüz denetlenecek bir yorum bulunamadı.
+                </div>
+            </div>
+        }
+        else
+        {
+            @foreach (var item in Model)
+            {
+                <div class="col-md-6 mb-4">
+                    <div class="card bg-dark border-secondary text-white shadow h-100">
+                        <div class="card-header border-bottom border-turuncu d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="text-turuncu fw-bold">@item.Kullanici?.Ad @item.Kullanici?.Soyad</span>
+                                <br />
+                                <small class="text-muted">@item.Urun?.UrunAdi</small>
+                            </div>
+                            <div class="text-warning">
+                                @for (int i = 0; i < (item.Puan ?? 0); i++)
+                                {
+                                    <i class="fa fa-star small"></i>
+                                }
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text text-white-50" style="font-style: italic;">"@item.YorumMetni"</p>
+                            <small class="text-muted d-block mb-2">Tarih: @item.Tarih?.ToString("dd.MM.yyyy HH:mm")</small>
+                        </div>
+                        <div class="card-footer border-top border-secondary d-flex justify-content-between align-items-center">
+                            <div>
+                                @if (item.OnayDurumu == true)
+                                {
+                                    <span class="badge bg-success"><i class="fa fa-check me-1"></i>Onaylı</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-warning text-dark"><i class="fa fa-clock me-1"></i>Onay Bekliyor</span>
+                                }
+                            </div>
+                            <div class="btn-group">
+                                <a href="/Admin/YorumOnayDegistir/@item.YorumId" class="btn btn-sm @(item.OnayDurumu == true ? "btn-outline-secondary" : "btn-outline-success")">
+                                    @(item.OnayDurumu == true ? "Onayı Kaldır" : "Onayla")
+                                </a>
+
+                                <a href="/Admin/YorumSil/@item.YorumId" class="btn btn-sm btn-outline-danger" onclick="return confirm('Bu yorumu silmek istediğine emin misin?')">
+                                    <i class="fa fa-trash"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+<style>
+    .text-turuncu {
+        color: #FF1493 !important;
+    }
+
+    .border-turuncu {
+        border-color: #FF1493 !important;
+    }
+
+    .card {
+        transition: 0.3s;
+    }
+
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: #FF1493 !important;
+        }
+</style>

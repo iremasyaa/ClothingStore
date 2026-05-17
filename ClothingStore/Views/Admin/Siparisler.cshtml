@@ -1,0 +1,198 @@
+﻿@* =================================================================================================================
+ * DOSYA ADI: Siparisler.cshtml (Admin Sipariş Yönetimi)
+ * AMACI: Sistemdeki tüm müşteri siparişlerini listeler; sipariş durumlarının (Hazırlanıyor, Kargoda vb.) 
+ * ve kargo firmalarının anlık olarak güncellenmesini, silinmesini ve detaylı incelenmesini sağlar.
+ * * KULLANILAN TEKNOLOJİLER VE KÜTÜPHANELER:
+ * - Razor View Engine: 'List<Siparisler>' modeli üzerinden iç içe döngülerle (foreach) veri listeleme.
+ * - LINQ: Sipariş detayları üzerinden 'Sum' fonksiyonu kullanılarak toplam tutarların dinamik hesaplanması.
+ * - Bootstrap 5: Tablo yapıları, Modal bileşenleri ve 'Dark Mode' uyumlu form elemanlarının entegrasyonu.
+ * - Font-Awesome 6: İşlem butonları ve statik ikonlar (fa-shopping-cart, fa-save, fa-search) için görsel destek.
+ * * TASARIM VE FONKSİYONEL DETAYLAR:
+ * 1. Anlık Güncelleme Mekanizması: Satır içi (inline) form yapısı sayesinde sayfa değiştirmeden 
+ * Sipariş Durumu ve Kargo Firması güncellenebilir.
+ * 2. Dinamik Modal Entegrasyonu: Her sipariş satırı için üretilen özel detay modalları sayesinde 
+ * müşteri bilgileri, teslimat adresi ve ürün içeriği sayfa yenilenmeden görüntülenebilir.
+ * 3. Veri İşleme (Parsing): Çoklu ürün resimlerinden 'Split' ve 'FirstOrDefault' yöntemleriyle ilk görselin 
+ * çekilmesi ve 'C2' formatı ile yerelleştirilmiş para birimi gösterimi.
+ * 4. UX/UI Standartları: Koyu tema üzerine neon pembe (#FF1493) vurgular, hover efektleri ve 
+ * kritik işlemler için kullanıcı onay (confirm) mekanizmaları.
+ * 5. Hata Toleransı: Null-check kontrolleri (detay != null) ve varsayılan değer atamalarıyla 
+ * veritabanı kaynaklı sayfa kırılmalarının önlenmesi.
+ ================================================================================================================= *@
+
+@model List<ClothingStore.Models.Siparisler>
+@{
+    Layout = "~/Views/Shared/AdminLayout.cshtml";
+}
+
+<div class="container-fluid">
+    <h2 class="text-white mb-4"><i class="fa fa-shopping-cart text-turuncu me-2"></i> Sipariş Yönetimi</h2>
+
+    <div class="table-responsive bg-dark p-3 rounded border border-secondary shadow">
+        <table class="table table-dark table-hover align-middle">
+            <thead class="text-turuncu border-bottom border-turuncu">
+                <tr>
+                    <th>Sipariş No</th>
+                    <th>Müşteri</th>
+                    <th>Tutar</th> 
+                    <th>Ödeme</th>
+                    <th>Durum & Kargo Güncelle</th>
+                    <th>Tarih</th>
+                    <th class="text-end">İşlem</th>
+                </tr>
+            </thead>
+            <tbody class="text-white-50">
+                @foreach (var item in Model)
+                {
+                    decimal dinamikAnaListeTutari = item.SiparisDetaylaris?.Sum(d => (d.Urun?.Fiyat ?? 0) * d.Adet) ?? 0;
+
+                    <tr>
+                        <td class="text-white fw-bold">#@item.SiparisId</td>
+                        <td>
+                            <div class="text-white">@item.Kullanici?.Ad @item.Kullanici?.Soyad</div>
+                            <small class="text-muted">@item.Kullanici?.Email</small>
+                        </td>
+
+                        <td>
+                            <b class="text-danger">@item.ToplamTutar.ToString("C2")</b>
+                        </td>
+
+                        <td>@item.OdemeTipi</td>
+                        <td>
+                            <form action="/Admin/SiparisGuncelle" method="post" class="d-flex gap-1">
+                                <input type="hidden" name="SiparisID" value="@item.SiparisId" />
+
+                                <select name="YeniDurum" class="form-select form-select-sm bg-secondary text-white border-0" style="width:130px;">
+                                    <!option value="Sipariş Alındı" @(item.Durum == "Sipariş Alındı" ? "selected" : "")>Sipariş Alındı</!option>
+                                    <!option value="Hazırlanıyor" @(item.Durum == "Hazırlanıyor" ? "selected" : "")>Hazırlanıyor</!option>
+                                    <!option value="Kargoya Verildi" @(item.Durum == "Kargoya Verildi" ? "selected" : "")>Kargoya Verildi</!option>
+                                    <!option value="Dağıtıma Çıktı" @(item.Durum == "Dağıtıma Çıktı" ? "selected" : "")>Dağıtıma Çıktı</!option>
+                                    <!option value="Tamamlandı" @(item.Durum == "Tamamlandı" ? "selected" : "")>Tamamlandı</!option>
+                                </select>
+
+                                <select name="YeniKargoID" class="form-select form-select-sm bg-secondary text-white border-0" style="width:110px;">
+                                    @foreach (var kargo in (ViewBag.Kargolar as List<ClothingStore.Models.KargoFirmalari>))
+                                    {
+                                        <!option value="@kargo.KargoId" @(item.KargoId == kargo.KargoId ? "selected" : "")>@kargo.FirmaAdi</!option>
+                                    }
+                                </select>
+
+                                <button type="submit" class="btn btn-sm btn-success"><i class="fa fa-save"></i></button>
+                            </form>
+                        </td>
+                        <td>@item.Tarih?.ToString("dd.MM.yyyy HH:mm")</td>
+                        <td class="text-end">
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#siparisModal-@item.SiparisId">
+                                    <i class="fa fa-search"></i>
+                                </button>
+                                <a href="/Admin/SiparisSil/@item.SiparisId" class="btn btn-sm btn-outline-danger"
+                                   onclick="return confirm('DİKKAT: Bu siparişi silerseniz, siparişe ait tüm detaylar da kalıcı olarak silinecektir! Onaylıyor musunuz?')">
+                                    <i class="fa fa-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@foreach (var item in Model)
+{
+    <div class="modal fade" id="siparisModal-@item.SiparisId" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content bg-dark text-white border-turuncu shadow-lg">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title text-turuncu">Sipariş Detayı (#@item.SiparisId)</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <h6 class="text-turuncu fw-bold small">Müşteri Bilgileri</h6>
+                            <p class="mb-0 small">@item.Kullanici?.Ad @item.Kullanici?.Soyad</p>
+                            <small class="text-muted">Tel: @item.Kullanici?.Telefon</small>
+                            <p class="small mt-1">Ödeme: <span class="text-white">@item.OdemeTipi</span></p>
+                        </div>
+                        <div class="col-6">
+                            <h6 class="text-turuncu fw-bold small">Teslimat Adresi</h6>
+                            <p class="small p-2 bg-secondary rounded" style="font-size: 11px;">@item.TeslimatAdresi</p>
+                            <p class="small">Kargo: <span class="text-turuncu">@item.Kargo?.FirmaAdi</span></p>
+                        </div>
+                    </div>
+
+                    <hr class="border-secondary">
+
+                    <h6 class="text-turuncu fw-bold small mb-2">Sipariş İçeriği</h6>
+                    <table class="table table-dark table-hover border-secondary mb-0" style="font-size: 12px;">
+                        <thead>
+                            <tr class="text-muted text-center">
+                                <th style="width:70px;">Resim</th>
+                                <th class="text-start">Ürün Adı</th>
+                                <th>Adet</th>
+                                <th class="text-end">Birim Fiyat</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (item.SiparisDetaylaris != null && item.SiparisDetaylaris.Count > 0)
+                            {
+                                foreach (var detay in item.SiparisDetaylaris)
+                                {
+                                    var ilkResim = detay.Urun?.ResimYolu?.Split(',').FirstOrDefault() ?? "varsayilan.png";
+                                    var anaSiteFiyati = detay.Urun?.Fiyat ?? 0;
+
+                                    <tr>
+                                        <td class="text-center">
+                                            <img src="/img/@ilkResim" alt="" style="width:50px; height:50px; object-fit:cover;" class="rounded border border-secondary" />
+                                        </td>
+                                        <td class="align-middle text-white text-start">@detay.Urun?.UrunAdi</td>
+                                        <td class="text-center align-middle">@detay.Adet</td>
+                                        <td class="text-end align-middle">@anaSiteFiyati.ToString("C2")</td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-3">
+                                        Ürün bilgisi bulunamadı (Detay Sayısı: 0)
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+
+                    <div class="text-end mt-3 p-2 bg-secondary rounded">
+                        @{
+                            decimal modalGercekToplam = item.SiparisDetaylaris?.Sum(d => (d.Urun?.Fiyat ?? 0) * d.Adet) ?? 0;
+                        }
+                        <h6 class="mb-0">Genel Toplam: <span class="text-turuncu fw-bold">@modalGercekToplam.ToString("C2")</span></h6>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .text-turuncu {
+        color: #FF1493 !important;
+    }
+
+    .border-turuncu {
+        border: 1px solid #FF1493 !important;
+    }
+
+    .btn-outline-warning:hover {
+        background-color: #FF1493;
+        color: white;
+    }
+
+    .form-select-sm {
+        font-size: 0.75rem;
+        height: 31px;
+        padding: 2px 5px;
+    }
+</style>

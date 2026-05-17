@@ -1,0 +1,21 @@
+﻿@* =================================================================================================================
+ * DOSYA ADI: _ViewImports.cshtml (Global View Yapılandırması)
+ * AMACI: Uygulama genelindeki tüm Razor View (.cshtml) dosyalarında kullanılacak ortak namespace'leri 
+ * ve Tag Helper bileşenlerini merkezi olarak tanımlar. Her View dosyasında tekrarlanan '@using' 
+ * satırlarını tek bir noktada toplayarak kod tekrarını önler.
+ * * KULLANILAN TEKNOLOJİLER VE BİLEŞENLER:
+ * - ASP.NET Core MVC: Uygulamanın temel web framework yapısı.
+ * - Razor Tag Helpers: HTML elementlerini sunucu taraflı kodla zenginleştiren 'asp-for', 'asp-action' 
+ * gibi modern yardımcıları tüm sayfalara enjekte eder.
+ * * TASARIM VE FONKSİYONEL DETAYLAR:
+ * 1. Merkezi Namespace Yönetimi: 'ClothingStore' ve 'ClothingStore.Models' dizinlerini global olarak 
+ * tanımlayarak, View içerisinde modellerin (Urunler, Siparisler vb.) doğrudan erişilebilir olmasını sağlar.
+ * 2. Tag Helper Aktivasyonu: Microsoft'un standart Tag Helper kütüphanesini '*' operatörü ile tüm 
+ * projeye dahil eder, böylece form ve link işlemlerinde akıllı HTML genişletmeleri aktif olur.
+ * 3. Proje Mimarisi: 'Views' klasörünün kök dizininde yer alarak hiyerarşik olarak tüm alt klasörleri 
+ * (Admin, Account, Urun vb.) kapsamasıyla kod temizliği ve sürdürülebilirlik sağlar.
+ ================================================================================================================= *@
+
+@using ClothingStore
+@using ClothingStore.Models
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers

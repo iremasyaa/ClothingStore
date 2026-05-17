@@ -1,0 +1,537 @@
+﻿@* =================================================================================================================
+ * DOSYA ADI: Detay.cshtml (Ürün Detay ve Etkileşim Sayfası)
+ * AMACI: Belirli bir ürünün teknik özelliklerini, resim galerisini, kullanıcı puanlamalarını ve yorumlarını listeler. 
+ * Stok kontrolü, beden seçimi ve benzer ürün önerileriyle satın alma kararını destekler.
+ * * KULLANILAN TEKNOLOJİLER VE KÜTÜPHANELER:
+ * - Razor View Engine: 'Urunler' modeli üzerinden puan ortalaması hesabı ve satın alma/yorum yetki kontrolleri.
+ * - JavaScript & Fetch API: Seçilen bedene göre 'GetBedenStok' üzerinden asenkron stok sorgulama ve buton yönetimi.
+ * - Swiper JS: 'Benzer Ürünler' alanı için responsive, kaydırılabilir (carousel) ürün bandı.
+ * - Bootstrap 5: Ana ürün galerisi için Carousel sistemi, Tab (sekme) yapısı ve modal bileşenleri.
+ * * TASARIM VE FONKSİYONEL DETAYLAR:
+ * 1. Akıllı Stok Yönetimi: Kullanıcı beden seçtiğinde JavaScript ile arka planda o bedenin stok adedi sorgulanır; 
+ * stok yoksa 'Sepete Ekle' butonu otomatik olarak devre dışı (disabled) bırakılır.
+ * 2. Koşullu Yorum Sistemi: Sadece ürünü gerçekten satın almış ve daha önce yorum yapmamış kullanıcıların 
+ * yeni yorum yapmasına izin veren güvenlik ve veri doğruluğu katmanı.
+ * 3. Dinamik Kategori Kontrolü: 'Çanta' gibi beden gerektirmeyen kategorilerde 'Beden Seçimi' alanını 
+ * otomatik olarak 'Standart' seçeneğine çeken kategori bazlı mantıksal kontrol.
+ * 4. UX/UI Standartları: Neon pembe (#FF1493) ve mor (#8a2be2) gradient butonlar, ortalama puanın yıldız 
+ * ikonlarıyla görselleştirilmesi ve 'badge-item'lar ile teknik detay sunumu.
+ * 5. Benzer Ürünler Algoritması: 'ViewBag.BenzerUrunler' üzerinden gelen verilerin Swiper ile modern bir 
+ * vitrin yapısında (autoplay ve loop destekli) sergilenmesi.
+ ================================================================================================================= *@
+
+@using ClothingStore.Models
+@using Microsoft.AspNetCore.Http
+@model ClothingStore.Models.Urunler
+
+@{
+    ViewData["Title"] = Model.UrunAdi;
+
+    var detayResimleri = !string.IsNullOrEmpty(Model.ResimYolu)
+        ? Model.ResimYolu.Split(',').Select(r => r.Trim()).ToList()
+        : new List<string>();
+
+    double puan = 0;
+    if (Model.Yorumlars != null && Model.Yorumlars.Any())
+    {
+        puan = Model.Yorumlars.Average(y => y.Puan ?? 0);
+    }
+
+    var kullaniciRol = Context.Session.GetString("Rol");
+    int? kullaniciId = Context.Session.GetInt32("KullaniciID") ?? Context.Session.GetInt32("KullaniciId");
+
+    bool satinAldiMi = ViewBag.SatinAldiMi != null && (bool)ViewBag.SatinAldiMi;
+    bool yorumYaptiMi = false;
+    if (kullaniciId.HasValue && Model.Yorumlars != null)
+    {
+        yorumYaptiMi = Model.Yorumlars.Any(y => y.KullaniciId == kullaniciId.Value);
+    }
+
+    var anaKatId = Model.KategoriId?.Split(',')[0];
+    var kategoriNesnesi = ((List<ClothingStore.Models.Kategoriler>)ViewBag.Kategoriler)
+                          ?.FirstOrDefault(k => k.KategoriId.ToString() == anaKatId);
+    var kategoriAdi = kategoriNesnesi?.KategoriAdi ?? "Genel";
+
+    bool cantaMi = kategoriAdi.ToLower().Contains("çanta") || kategoriAdi.ToLower().Contains("handbag");
+}
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+
+<style>
+    :root {
+        --p-lila: #FF1493;
+        --ana-mor: #8a2be2;
+        --canli-pembe: #FF69B4;
+        --arkaplan-pembe: #fff9fc;
+    }
+
+    .form-select:focus, .form-control:focus, select:focus, input:focus {
+        border-color: var(--p-lila) !important;
+        box-shadow: 0 0 0 0.25rem rgba(255, 20, 147, 0.25) !important;
+        outline: 0 !important;
+    }
+
+    .product-detail-wrapper {
+        padding: 40px 0;
+        background: var(--arkaplan-pembe);
+        min-height: 100vh;
+    }
+
+    .detail-page {
+        display: flex;
+        gap: 50px;
+        margin-bottom: 40px;
+        background: white;
+        padding: 35px;
+        border-radius: 25px;
+        box-shadow: 0 10px 40px rgba(200, 162, 200, 0.12);
+        align-items: flex-start;
+    }
+
+    .detail-gallery {
+        flex: 1;
+        min-width: 0;
+    }
+
+    #productDetailCarousel {
+        background: #fdfdfd;
+        border-radius: 20px;
+        border: 2px solid #fff4f8;
+        overflow: hidden;
+        height: 550px;
+    }
+
+    .carousel-inner, .carousel-item {
+        height: 100%;
+    }
+
+    .product-detail-img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        padding: 20px;
+    }
+
+    .detail-info {
+        flex: 1;
+    }
+
+        .detail-info h1 {
+            font-size: 34px;
+            font-weight: 800;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+    .product-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 25px;
+        align-items: center;
+    }
+
+    .badge-item {
+        background: white;
+        padding: 8px 18px;
+        border-radius: 25px;
+        font-size: 14px;
+        color: #333;
+        border: 2px solid #FF1493;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        height: 45px;
+    }
+
+        .badge-item span {
+            color: #FF1493;
+        }
+
+    .rating {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    .stars i {
+        color: #FFD700 !important;
+    }
+
+        .stars i.text-muted {
+            color: #e4e5e9 !important;
+        }
+
+    .detail-price {
+        font-size: 40px;
+        font-weight: 900;
+        color: var(--p-lila);
+        margin: 25px 0;
+    }
+
+    .btn-gradient-custom {
+        background: linear-gradient(135deg, var(--canli-pembe) 0%, var(--ana-mor) 100%);
+        color: white !important;
+        border: none;
+        padding: 16px;
+        font-size: 19px;
+        font-weight: 800;
+        border-radius: 15px;
+        cursor: pointer;
+        transition: 0.3s;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(138, 43, 226, 0.2);
+        width: 100%;
+    }
+
+        .btn-gradient-custom:hover:not(:disabled) {
+            filter: brightness(1.1);
+            transform: translateY(-4px);
+        }
+
+    .product-extra {
+        margin-top: 50px;
+        background: white;
+        padding: 40px;
+        border-radius: 25px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.05);
+    }
+
+    .nav-link {
+        font-weight: 800 !important;
+        color: #bbb !important;
+        font-size: 19px;
+        border: none !important;
+    }
+
+        .nav-link.active {
+            color: var(--ana-mor) !important;
+            border-bottom: 4px solid var(--ana-mor) !important;
+            background: transparent !important;
+        }
+
+    #modalSubmitBtn, .btn-yorum-gonder {
+        background: linear-gradient(135deg, #FF69B4 0%, #8a2be2 100%) !important;
+        color: white !important;
+        border: none !important;
+        font-weight: 800 !important;
+        border-radius: 12px !important;
+        padding: 12px 25px !important;
+        transition: 0.3s;
+    }
+
+    .similar-title {
+        color: var(--ana-mor);
+        font-weight: 900;
+        font-size: 28px;
+        margin: 60px 0 30px;
+        text-align: center;
+    }
+
+    .similar-swiper {
+        padding: 20px 10px 60px 10px !important;
+        position: relative;
+    }
+
+    .swiper-slide {
+        height: auto;
+    }
+
+    .similar-card {
+        background: white;
+        border: 1px solid #fff0f5;
+        padding: 15px;
+        border-radius: 20px;
+        text-align: center;
+        transition: 0.3s;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        height: 100%;
+    }
+
+        .similar-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(255, 20, 147, 0.1);
+            border-color: var(--canli-pembe);
+        }
+
+    .similar-img-box {
+        height: 180px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 10px;
+    }
+
+        .similar-img-box img {
+            max-height: 100%;
+            max-width: 100%;
+            object-fit: contain;
+        }
+
+    .swiper-button-next, .swiper-button-prev {
+        color: var(--ana-mor) !important;
+        transform: scale(0.7);
+    }
+
+    .swiper-pagination-bullet-active {
+        background: var(--canli-pembe) !important;
+    }
+</style>
+
+<div class="product-detail-wrapper">
+    <div class="container">
+        <div class="detail-page">
+            <div class="detail-gallery">
+                @if (detayResimleri.Any())
+                {
+                    <div id="productDetailCarousel" class="carousel slide" data-bs-ride="carousel">
+                        <div class="carousel-inner">
+                            @for (int i = 0; i < detayResimleri.Count; i++)
+                            {
+                                <div class="carousel-item @(i == 0 ? "active" : "")">
+                                    <img src="/img/@detayResimleri[i]" class="product-detail-img" onerror="this.src='/img/resim-yok.png';">
+                                </div>
+                            }
+                        </div>
+                        @if (detayResimleri.Count > 1)
+                        {
+                            <button class="carousel-control-prev" type="button" data-bs-target="#productDetailCarousel" data-bs-slide="prev"><span class="carousel-control-prev-icon" style="filter:invert(1)"></span></button>
+                            <button class="carousel-control-next" type="button" data-bs-target="#productDetailCarousel" data-bs-slide="next"><span class="carousel-control-next-icon" style="filter:invert(1)"></span></button>
+                        }
+                    </div>
+                }
+            </div>
+
+            <div class="detail-info">
+                <h1>@Model.UrunAdi</h1>
+                <div class="product-tags">
+                    @if (!string.IsNullOrEmpty(Model.Renk))
+                    {
+                        <div class="badge-item">🎨 <span>Renk:</span> @Model.Renk</div>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.KumasTipi))
+                    {
+                        <div class="badge-item">🧵 <span>Kumaş:</span> @Model.KumasTipi</div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(Model.Mevsim))
+                    {
+                        <div class="badge-item">☀️ <span>Mevsim:</span> @Model.Mevsim</div>
+                    }
+                    <div class="badge-item">📦 <span>Toplam Stok:</span> <b>@(Model.StokAdedi ?? 0)</b></div>
+                    @if (!cantaMi)
+                    {
+                        <div id="bedenStokAlani" class="badge-item" style="display:none; border-color:var(--ana-mor);">✨ <span>Beden Stoku:</span> <b id="stokMiktar">0</b> <small id="stokDurumuYazi"></small></div>
+                    }
+                </div>
+
+                <div class="rating">
+                    <span class="stars">
+                        @for (int i = 1; i <= 5; i++)
+                        {
+                            <i class="fa fa-star @(i <= Math.Floor(puan) ? "" : "text-muted")"></i>
+                        }
+                    </span>
+                    <span class="score fw-bold ms-2">@puan.ToString("0.0") / 5</span>
+                </div>
+
+                <p class="detail-price">@Model.Fiyat.ToString("C2")</p>
+
+                <form action="/Sepet/Ekle" method="get">
+                    <input type="hidden" name="urunId" value="@Model.UrunId" />
+                    <div class="mb-4">
+                        <label class="fw-bold mb-2 d-block">@(cantaMi ? "Seçiminiz:" : "Beden Seçiniz:")</label>
+                        <select id="bedenSecimi" name="BedenId" class="form-select w-100" style="border-radius:12px; border:2px solid #ffe1f0;" required>
+                            @if (cantaMi)
+                            {
+                                <option value="13">Standart</option>
+                            }
+                            else
+                            {
+                                <option value="">--- Beden Seçin ---</option>
+                                @if (ViewBag.MevcutBedenler != null)
+                                {
+                                    foreach (var beden in (List<ClothingStore.Models.Bedenler>)ViewBag.MevcutBedenler)
+                                    {
+                                        <option value="@beden.BedenId">@beden.BedenTanimi</option>
+                                    }
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="d-flex gap-3">
+                        <button type="submit" id="btnSepeteEkle" class="btn-gradient-custom" @(cantaMi ? "" : "disabled")>🛒 SEPETE EKLE</button>
+                        <a href="/Account/FavoriEkleCikar?urunId=@Model.UrunId" class="detail-favorite" style="flex:0 0 70px; border:2px solid var(--p-lila); border-radius:15px; display:flex; align-items:center; justify-content:center; text-decoration:none; color:var(--p-lila); font-size:24px;">❤</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="product-extra">
+            <ul class="nav nav-tabs border-0 mb-4" id="productTab">
+                <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#desc-tab">Ürün Açıklaması</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#comm-tab">Yorumlar (@(Model.Yorumlars?.Count ?? 0))</button></li>
+            </ul>
+            <div class="tab-content">
+                <div class="tab-pane fade show active" id="desc-tab">
+                    <p class="text-muted" style="line-height:1.8;">@(string.IsNullOrEmpty(Model.Aciklama) ? "Açıklama mevcut değil." : Model.Aciklama)</p>
+                </div>
+                <div class="tab-pane fade" id="comm-tab">
+                    @if (satinAldiMi && !yorumYaptiMi)
+                    {
+                        <div class="card border-0 shadow-sm rounded-4 mb-5" style="background: #fff9fc; border: 1px solid #ffe1f0 !important;">
+                            <div class="card-body p-4 text-center">
+                                <h5 class="fw-bold mb-3" style="color: var(--ana-mor);">Deneyiminizi Paylaşın</h5>
+                                <form action="/Urun/YorumEkle" method="post">
+                                    <input type="hidden" name="UrunId" value="@Model.UrunId" />
+                                    <select name="Puan" class="form-select w-auto mx-auto mb-3" required>
+                                        <option value="5">⭐⭐⭐⭐⭐ (5 Yıldız)</option>
+                                        <option value="4">⭐⭐⭐⭐ (4 Yıldız)</option>
+                                        <option value="3">⭐⭐⭐ (3 Yıldız)</option>
+                                        <option value="2">⭐⭐ (2 Yıldız)</option>
+                                        <option value="1">⭐ (1 Yıldız)</option>
+                                    </select>
+                                    <textarea name="YorumMetni" class="form-control mb-3" rows="3" placeholder="Ürün nasıl? Kumaşı, kalıbı..." required style="resize:none; border-radius:12px;"></textarea>
+                                    <button type="submit" class="btn btn-yorum-gonder">YORUMU GÖNDER</button>
+                                </form>
+                            </div>
+                        </div>
+                    }
+                    @if (Model.Yorumlars != null && Model.Yorumlars.Any())
+                    {
+                        @foreach (var yorum in Model.Yorumlars.OrderByDescending(x => x.Tarih))
+                        {
+                            <div class="mb-4 pb-4 border-bottom">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <strong style="color:var(--ana-mor)">@yorum.Kullanici?.Ad @(yorum.Kullanici?.Soyad?.Substring(0, 1)).</strong>
+                                    <small class="text-muted">@yorum.Tarih?.ToString("dd.MM.yyyy")</small>
+                                </div>
+                                <div class="stars mb-2" style="font-size:12px;">
+                                    @for (int i = 1; i <= 5; i++)
+                                    {
+                                        <i class="fa fa-star @(i <= yorum.Puan ? "" : "text-muted")"></i>
+                                    }
+                                </div>
+                                <p class="mb-0">@yorum.YorumMetni</p>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <p class="text-center text-muted">Henüz yorum yapılmamış.</p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        @if (ViewBag.BenzerUrunler != null)
+        {
+            <h2 class="similar-title">SİZİN İÇİN SEÇTİKLERİMİZ</h2>
+
+            <div class="swiper similar-swiper">
+                <div class="swiper-wrapper">
+                    @foreach (var urun in (List<Urunler>)ViewBag.BenzerUrunler)
+                    {
+                        var benzerResim = !string.IsNullOrEmpty(urun.ResimYolu) ? "/img/" + urun.ResimYolu.Split(',')[0] : "/img/resim-yok.png";
+                        <div class="swiper-slide">
+                            <div class="similar-card">
+                                <a href="/Urun/Detay/@urun.UrunId" class="text-decoration-none d-flex flex-column h-100">
+                                    <div class="similar-img-box"><img src="@benzerResim" onerror="this.src='/img/resim-yok.png';"></div>
+                                    <h6 class="text-dark fw-bold text-truncate px-2">@urun.UrunAdi</h6>
+                                    <p class="fw-bold mb-3" style="color:var(--p-lila)">@urun.Fiyat.ToString("C2")</p>
+                                </a>
+                                <button type="button" onclick="BedenSecModalAc(@urun.UrunId)" class="btn-yorum-gonder mt-auto" style="font-size:12px; padding:8px !important;">🛒 SEPETE EKLE</button>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div class="swiper-button-next"></div>
+                <div class="swiper-button-prev"></div>
+                <div class="swiper-pagination"></div>
+            </div>
+        }
+    </div>
+</div>
+
+<div class="modal fade" id="bedenModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content shadow-lg border-0" style="border-radius:20px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title w-100 text-center fw-bold" style="color:var(--ana-mor)">Beden Seçimi</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <form action="/Sepet/Ekle" method="get">
+                    <input type="hidden" name="urunId" id="modalUrunId" />
+                    <select name="BedenId" id="modalBedenSelect" class="form-select mb-3 text-center fw-bold" required style="border-radius:12px; color:var(--p-lila); border:2px solid #ffe1f0;"></select>
+                    <button type="submit" id="modalSubmitBtn" class="btn w-100">ONAYLA VE EKLE</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        new Swiper(".similar-swiper", {
+            slidesPerView: 1,
+            spaceBetween: 20,
+            loop: true,
+            autoplay: { delay: 3500, disableOnInteraction: false },
+            navigation: { nextEl: ".swiper-button-next", prevEl: ".swiper-button-prev" },
+            pagination: { el: ".swiper-pagination", clickable: true },
+            breakpoints: {
+                640: { slidesPerView: 2 },
+                1024: { slidesPerView: 3 },
+                1200: { slidesPerView: 4 }
+            }
+        });
+
+        const select = document.getElementById('bedenSecimi');
+        const btnSepet = document.getElementById('btnSepeteEkle');
+        const stokMiktarLabel = document.getElementById('stokMiktar');
+        const stokDurumLabel = document.getElementById('stokDurumuYazi');
+        const bedenStokAlani = document.getElementById('bedenStokAlani');
+
+        if(select && !@cantaMi.ToString().ToLower()) {
+            select.addEventListener('change', function() {
+                const selectedBedenId = this.value; 
+                const urunId = "@Model.UrunId";
+
+                if (selectedBedenId !== "") {
+                    btnSepet.disabled = false;
+                    fetch(`/Urun/GetBedenStok?urunId=${urunId}&bedenId=${selectedBedenId}`)
+                        .then(r => r.json())
+                        .then(stok => {
+                            bedenStokAlani.style.display = 'inline-flex';
+                            stokMiktarLabel.innerText = stok;
+                            stokDurumLabel.innerText = stok > 0 ? "(Stokta)" : "(Tükendi)";
+                            if(stok <= 0) btnSepet.disabled = true;
+                        });
+                } else {
+                    btnSepet.disabled = true;
+                    bedenStokAlani.style.display = 'none';
+                }
+            });
+        }
+    });
+
+    function BedenSecModalAc(urunId) {
+        $('#modalUrunId').val(urunId);
+        const $select = $('#modalBedenSelect');
+        $select.empty().append('<option disabled selected>⏳ Yükleniyor...</option>');
+        $('#bedenModal').modal('show');
+
+        $.get('/Urun/UrunBedenleriGetir', { urunId: urunId }, function(data) {
+            $select.empty().append('<option value="" disabled selected>Beden Seçin</option>');
+            data.forEach(item => {
+                $select.append(`<option value="${item.bedenId}">${item.bedenAdi}</option>`);
+            });
+        });
+    }
+</script>

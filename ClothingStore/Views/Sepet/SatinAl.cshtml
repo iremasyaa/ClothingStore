@@ -1,0 +1,242 @@
+﻿@* =================================================================================================================
+ * DOSYA ADI: SatinAl.cshtml (Ödeme ve Sipariş Onay Sayfası)
+ * AMACI: Sepet aşamasını tamamlayan kullanıcının; teslimat adresini girmesini, kargo firmasını seçmesini ve 
+ * tercih ettiği ödeme yöntemini belirleyerek siparişi resmi olarak oluşturmasını sağlar.
+ * * KULLANILAN TEKNOLOJİLER VE KÜTÜPHANELER:
+ * - Razor View Engine: ViewBag üzerinden gelen 'KargoFirmalari' listesinin ve 'OdenecekTutar' bilgisinin işlenmesi.
+ * - CSS3 (Checkout UI): 'sticky-top' özet paneli, interaktif seçim kartları (hover effects) ve özel 'step-badge' tasarımı.
+ * - Bootstrap 5 Grid: Form alanları ile sabit sipariş özeti arasında dengeli (8-4) sütun yerleşimi.
+ * - Font-Awesome 6: Ödeme türlerini ve kargo operasyonlarını temsil eden yardımcı ikonların entegrasyonu.
+ * * TASARIM VE FONKSİYONEL DETAYLAR:
+ * 1. Adım Bazlı Navigasyon: Kullanıcıyı yormayan, 'step-badge' bileşenleri ile numaralandırılmış 3 ana işlem 
+ * bloğu (Adres, Kargo, Ödeme).
+ * 2. Akıllı Adres Doldurma: Kullanıcının profilinde kayıtlı olan adres bilgisinin (@ViewBag.KayitliAdres) 
+ * otomatik olarak textarea alanına getirilmesi ile sağlanan işlem hızı.
+ * 3. Dinamik Kargo Seçimi: Veritabanındaki aktif kargo firmalarının radyo buton mimarisiyle listelenmesi ve 
+ * görselleştirilmiş seçim alanları.
+ * 4. UX/UI Standartları: Neon pembe (#FF1493) ve lila (#8a4baf) geçişli (gradient) 'Siparişi Tamamla' butonu 
+ * ve odaklanmış form alanları (input:focus).
+ * 5. Yasal Uyumluluk Vurgusu: Sipariş onay butonu altında konumlandırılan Mesafeli Satış Sözleşmesi bilgilendirmesi.
+ ================================================================================================================= *@
+
+@{
+    ViewData["Title"] = "Satın Al";
+    var kargolar = ViewBag.Kargolar as List<ClothingStore.Models.KargoFirmalari>;
+    decimal toplamTutar = ViewBag.OdenecekTutar;
+}
+
+<style>
+    body {
+        background-color: #fdf8fd;
+    }
+
+    .checkout-card {
+        background: white;
+        border-radius: 25px;
+        border: none;
+        box-shadow: 0 10px 30px rgba(167, 112, 239, 0.05);
+        margin-bottom: 25px;
+        padding: 30px;
+    }
+
+    .checkout-section-title {
+        color: #8a4baf;
+        font-weight: 800;
+        font-size: 1.25rem;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .form-control, .form-check-input {
+        border: 2px solid #f3f3f3;
+        border-radius: 12px;
+        padding: 12px 15px;
+        transition: 0.3s;
+    }
+
+        .form-control:focus {
+            border-color: #FF1493;
+            box-shadow: 0 0 0 0.25 margin-bottom: 20px;
+            rem rgba(200, 162, 200, 0.1);
+        }
+
+    .kargo-option, .payment-option {
+        border: 2px solid #f8f0f8;
+        border-radius: 15px;
+        padding: 15px;
+        margin-bottom: 10px;
+        transition: 0.3s;
+        cursor: pointer;
+    }
+
+        .kargo-option:hover, .payment-option:hover {
+            background-color: #fdf8fd;
+            border-color: #FF1493;
+        }
+
+    .form-check-input:checked + .form-check-label {
+        color: #8a4baf;
+        font-weight: bold;
+    }
+
+    .summary-card-fixed {
+        background: white;
+        border-radius: 25px;
+        padding: 30px;
+        box-shadow: 0 15px 35px rgba(167, 112, 239, 0.1);
+        position: sticky;
+        top: 30px;
+    }
+
+    .btn-complete {
+        background: linear-gradient(135deg, #ff7eb3 0%, #a770ef 100%);
+        color: white;
+        border: none;
+        border-radius: 15px;
+        padding: 18px;
+        font-weight: 800;
+        font-size: 1.1rem;
+        transition: 0.3s;
+        box-shadow: 0 5px 15px rgba(167, 112, 239, 0.3);
+    }
+
+        .btn-complete:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(167, 112, 239, 0.4);
+            color: white;
+        }
+
+    .step-badge {
+        background: #f3ebf3;
+        color: #8a4baf;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        font-weight: bold;
+    }
+</style>
+
+<div class="container mt-5 mb-5">
+    <div class="mb-5">
+        <h2 style="color:#333; font-weight: 800;">Siparişi Tamamla</h2>
+        <p class="text-muted">Ödeme bilgilerinizi girerek siparişinizi güvenle oluşturun.</p>
+    </div>
+
+    <form action="/Sepet/SatinAl" method="post">
+        <div class="row">
+
+            <div class="col-lg-8">
+
+                <div class="checkout-card">
+                    <div class="checkout-section-title">
+                        <span class="step-badge">1</span>
+                        <span>Teslimat Adresi</span>
+                    </div>
+                    <div class="mb-3">
+                        <textarea name="teslimatAdresi" class="form-control" rows="4" required
+                                  placeholder="Siparişinizin teslim edileceği açık adresi yazınız (Mahalle, Sokak, No, İlçe/İl)...">@ViewBag.KayitliAdres</textarea>
+                    </div>
+                </div>
+
+                <div class="checkout-card">
+                    <div class="checkout-section-title">
+                        <span class="step-badge">2</span>
+                        <span>Kargo Firması Seçimi</span>
+                    </div>
+                    <div class="row px-3">
+                        @if (kargolar != null)
+                        {
+                            foreach (var kargo in kargolar)
+                            {
+                                <div class="col-md-6">
+                                    <div class="form-check kargo-option">
+                                        <input class="form-check-input" type="radio" name="kargoId" value="@kargo.KargoId" id="kargo_@kargo.KargoId" required>
+                                        <label class="form-check-label w-100 cursor-pointer" for="kargo_@kargo.KargoId">
+                                            <strong>@kargo.FirmaAdi</strong>
+                                            <div class="small text-muted">Standart Teslimat</div>
+                                        </label>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+
+                <div class="checkout-card">
+                    <div class="checkout-section-title">
+                        <span class="step-badge">3</span>
+                        <span>Ödeme Yöntemi</span>
+                    </div>
+
+                    <div class="payment-option">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="odemeTipi" value="Kredi Kartı" id="odeme1" checked>
+                            <label class="form-check-label ms-2" for="odeme1">
+                                <i class="fa fa-credit-card text-muted me-2"></i> Kredi veya Banka Kartı
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="payment-option">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="odemeTipi" value="Havale/EFT" id="odeme2">
+                            <label class="form-check-label ms-2" for="odeme2">
+                                <i class="fa fa-university text-muted me-2"></i> Havale / EFT İle Ödeme
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="payment-option">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="odemeTipi" value="Kapıda Ödeme" id="odeme3">
+                            <label class="form-check-label ms-2" for="odeme3">
+                                <i class="fa fa-truck text-muted me-2"></i> Kapıda Ödeme
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="summary-card-fixed">
+                    <h4 class="fw-bold mb-4">Sipariş Özeti</h4>
+
+                    <div class="d-flex justify-content-between mb-3 text-muted fw-bold">
+                        <span>Ürünler Toplamı</span>
+                        <span>@toplamTutar.ToString("N0") TL</span>
+                    </div>
+
+                    <div class="d-flex justify-content-between mb-3 text-muted fw-bold">
+                        <span>Kargo</span>
+                        <span class="text-success">Ücretsiz</span>
+                    </div>
+
+                    <hr style="opacity: 0.1;">
+
+                    <div class="d-flex justify-content-between align-items-center mb-4 pt-2">
+                        <span class="h5 fw-bold mb-0">Ödenecek Tutar</span>
+                        <span class="h3 fw-bold" style="color:#8a4baf;">@toplamTutar.ToString("N0") TL</span>
+                    </div>
+
+                    <button type="submit" class="btn btn-complete w-100">
+                        SİPARİŞİ TAMAMLA <i class="fa fa-check-circle ms-2"></i>
+                    </button>
+
+                    <div class="mt-4 text-center">
+                        <p class="text-muted" style="font-size: 0.75rem; line-height: 1.4;">
+                            "Siparişi Tamamla" butonuna basarak
+                            <a href="#" class="text-decoration-none fw-bold" style="color:#FF1493;">Mesafeli Satış Sözleşmesi</a>'ni
+                            kabul etmiş sayılırsınız.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>

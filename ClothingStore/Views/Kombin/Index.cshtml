@@ -1,0 +1,331 @@
+﻿@* =================================================================================================================
+ * DOSYA ADI: Index.cshtml (Kombin Yönetim ve Önizleme Sayfası)
+ * AMACI: Kullanıcıların hem mağaza ürünlerinden hem de kendi dijital dolaplarından oluşturdukları kombinleri 
+ * sanal bir manken üzerinde görselleştirerek listelemelerini, yönetmelerini ve doğrudan sepete aktarmalarını sağlar.
+ * * KULLANILAN TEKNOLOJİLER VE KÜTÜPHANELER:
+ * - Razor View Engine: 'IEnumerable<Kombinler>' modeli üzerinden hibrit veri setlerinin (Site Ürünü vs Dolap Ürünü) işlenmesi.
+ * - CSS3 Layering & Positioning: 'absolute' konumlandırma ve 'z-index' katmanları ile kıyafetlerin manken üzerinde üst üste bindirilmesi.
+ * - AJAX & jQuery: Kombin detaylarının modal üzerinden asenkron yüklenmesi ve sepet/silme işlemlerinin arka planda yürütülmesi.
+ * - Bootstrap 5: Modal bileşenleri, duyarlı grid sistemi ve modern kart yapılandırması.
+ * * TASARIM VE FONKSİYONEL DETAYLAR:
+ * 1. Sanal Manken Önizlemesi (Mannequin Preview): 'kombin-preview-oval' içindeki 'pos-X' sınıfları sayesinde kategorisine göre 
+ * kıyafetlerin (Üst, Alt, Dış Giyim, Ayakkabı vb.) doğru koordinatlara yerleştirilmesi.
+ * 2. Akıllı Veri Ayrıştırma: Kombin detayındaki ürünün veritabanında 'SitedekiUrun' veya 'DolaptakiUrun' olmasına göre 
+ * dinamik resim yolu ve kategori ID tespiti.
+ * 3. Etkileşimli Detay Paneli: 'kombinDetayGoster' fonksiyonu ile kombini oluşturan parçaların fiyat, ad ve tür 
+ * bilgilerinin şık bir modal içerisinde listelenmesi.
+ * 4. Karma Sepet Yönetimi: 'kombiniSepeteAtVeGit' fonksiyonu ile tek tıkla kombindeki tüm satın alınabilir 
+ * parçaların sepete eklenmesi ve yönlendirme mantığı.
+ * 5. UX Standartları: Neon pembe (#ff4fa3) vurgu rengi, yuvarlatılmış (30px) yumuşak köşeler ve 'drop-shadow' 
+ * efektleri ile oluşturulan butik moda evi estetiği.
+ ================================================================================================================= *@
+
+@model IEnumerable<ClothingStore.Models.Kombinler>
+
+@{
+    ViewData["Title"] = "Kombinlerim";
+}
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+    body {
+        font-family: 'Poppins', sans-serif;
+        background: #fff9fc; 
+        padding: 20px;
+    }
+
+    .page-title {
+        font-size: 38px;
+        font-weight: 800;
+        color: #ff4fa3 !important; 
+        letter-spacing: -1.5px;
+        margin-bottom: 25px;
+        background: none;
+        -webkit-background-clip: initial;
+        -webkit-text-fill-color: initial;
+    }
+
+
+    .kombin-card {
+        background: #fff9fc; 
+        border-radius: 30px;
+        padding: 20px;
+        box-shadow: 0 8px 25px rgba(255, 79, 163, 0.08);
+        border: 1px solid #fdf0f6;
+        transition: 0.3s;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+        .kombin-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 30px rgba(255, 79, 163, 0.12);
+        }
+
+
+    .kombin-preview-oval {
+        width: 100%;
+        height: 250px;
+        background: #fff0f6;
+        border-radius: 40px;
+        margin-bottom: 15px;
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+        border: none;
+    }
+
+    .mannequin-wrapper {
+        position: relative;
+        width: 130px;
+        height: 200px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .manken-body-shape {
+        position: absolute;
+        width: 90px;
+        height: 190px;
+        background: #ffe3ef;
+        border-radius: 50px;
+        opacity: 0.4;
+        z-index: 1;
+    }
+
+    .preview-item {
+        position: absolute;
+        object-fit: contain;
+        transition: 0.3s;
+        filter: drop-shadow(1px 2px 4px rgba(0,0,0,0.08));
+    }
+
+    .pos-1 {
+        top: 30px;
+        width: 85px;
+        height: 100px;
+        z-index: 5;
+    }
+
+    .pos-2 {
+        top: 110px;
+        width: 75px;
+        height: 110px;
+        z-index: 3;
+    }
+
+    .pos-3 {
+        top: 20px;
+        width: 110px;
+        height: 130px;
+        z-index: 4;
+    }
+
+    .pos-4 {
+        bottom: 10px;
+        width: 60px;
+        height: 40px;
+        z-index: 2;
+    }
+
+    .pos-5 {
+        top: 110px;
+        right: -10px;
+        width: 45px;
+        height: 55px;
+        z-index: 6;
+    }
+ 
+    .price-tag {
+        font-size: 24px;
+        font-weight: 800;
+        color: #ff4fa3;
+        margin-bottom: 15px;
+    }
+
+
+    .btn-pink-main {
+        background: #ff4fa3;
+        color: white !important;
+        border: none;
+        border-radius: 12px;
+        padding: 10px 18px;
+        font-weight: 600;
+        font-size: 14px;
+        transition: 0.3s;
+    }
+
+        .btn-pink-main:hover {
+            background: #e84393;
+            transform: scale(1.02);
+        }
+
+    .modal-content-pink {
+        border-radius: 25px;
+        border: none;
+        overflow: hidden;
+        background: #fff9fc; 
+    }
+
+    .modal-header-pink {
+        background: #ff4fa3;
+        color: white;
+        border: none;
+        padding: 15px 20px;
+    }
+
+    .modal-body {
+        background: #fff9fc; 
+        padding: 20px;
+    }
+</style>
+
+<div class="container mt-4 mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="page-title">Kombinlerim</h1>
+        <a href="/Kombin/KombinOlustur" class="btn btn-pink-main shadow-sm">
+            <i class="fa-solid fa-plus me-2"></i>Yeni Kombin Oluştur
+        </a>
+    </div>
+
+    <div class="row g-4">
+        @foreach (var kombin in Model)
+        {
+            <div class="col-md-6 col-lg-4">
+                <div class="kombin-card">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="badge" style="background:#ffe3ef; color:#ff4fa3; border-radius:8px; padding: 6px 10px; font-size: 11px;">
+                            @kombin.OlusturulmaTarihi.ToString("dd MMM yyyy")
+                        </span>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-light rounded-circle shadow-sm" onclick="kombinDetayGoster(@kombin.KombinId)">
+                                <i class="fa-solid fa-eye text-muted"></i>
+                            </button>
+                            <button class="btn btn-sm btn-light rounded-circle shadow-sm" onclick="kombinSil(@kombin.KombinId)">
+                                <i class="fa-solid fa-trash-can text-danger"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="kombin-preview-oval">
+                        <div class="mannequin-wrapper">
+                            <div class="manken-body-shape"></div>
+
+                            @if (kombin.KombinDetaylari != null)
+                            {
+                                foreach (var detay in kombin.KombinDetaylari)
+                                {
+                                    string resimUrl = "";
+                                    string katId = "";
+
+                                    if (detay.SitedekiUrun != null)
+                                    {
+                                        var resimYoluV = detay.SitedekiUrun.ResimYolu;
+                                        var fileName = !string.IsNullOrEmpty(resimYoluV) ? resimYoluV.Split(',')[0].Trim() : "no-image.jpg";
+                                        resimUrl = "/img/" + fileName;
+                                        katId = detay.SitedekiUrun.KategoriId?.Split(',')[0] ?? "";
+                                    }
+
+                                    else if (detay.DolaptakiUrun != null)
+                                    {
+                                        var resimYoluV = detay.DolaptakiUrun.ResimYolu;
+                                        var fileName = !string.IsNullOrEmpty(resimYoluV) ? resimYoluV.Split(',')[0].Trim() : "no-image.jpg";
+                                        resimUrl = "/img/" + fileName;
+                                        katId = detay.DolaptakiUrun.KategoriId.ToString();
+                                    }
+
+                                    if (!string.IsNullOrEmpty(resimUrl))
+                                    {
+                                        <img src="@resimUrl" class="preview-item pos-@katId" onerror="this.style.display='none'" />
+                                    }
+                                }
+                            }
+                        </div>
+                    </div>
+
+                    <div class="fw-bold fs-4 mb-1 text-truncate" title="@kombin.KombinAdi">@kombin.KombinAdi</div>
+                    <div class="price-tag">@kombin.ToplamTutar.ToString("N0") TL</div>
+
+                    <div class="mt-auto d-flex gap-2">
+                        <a href="/Kombin/KombinOlustur/@kombin.KombinId" class="btn btn-light w-50 py-2 fw-bold" style="border-radius:12px; background:#f8f0f8; color:#555; font-size: 14px;">
+                            <i class="fa-solid fa-pen-to-square me-1"></i>Düzenle
+                        </a>
+                        <button class="btn btn-pink-main w-50 py-2" onclick="kombiniSepeteAtVeGit(@kombin.KombinId)">
+                            <i class="fa-solid fa-cart-shopping me-1"></i>Sepete Git
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+
+<div class="modal fade" id="kombinDetayModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content modal-content-pink shadow-lg">
+            <div class="modal-header modal-header-pink border-0">
+                <h5 class="modal-title fw-bold"><i class="fa-solid fa-shirt me-2"></i>Kombin İçeriği</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Kapat"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div id="detayListesi"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function kombinDetayGoster(kombinId) {
+            $.get('/Kombin/KombinDetaylariniGetir/' + kombinId, function (data) {
+                let html = '';
+                if (!data || data.length === 0) {
+                    html = '<div class="text-center p-4 text-muted">Bu kombinde parça bulunamadı.</div>';
+                } else {
+                    data.forEach(item => {
+                        let resim = item.resim ? item.resim.split(',')[0].trim() : 'no-image.jpg';
+                        html += `
+                            <div class="d-flex align-items-center mb-3 p-3 border rounded-4" style="background:#fff9fc; border-color:#fdf0f6;">
+                                <img src="/img/${resim}" style="width: 55px; height: 55px; object-fit: contain;" class="me-3 rounded-3 bg-white border">
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold text-dark" style="font-size:14px;">${item.ad}</div>
+                                    <small class="badge bg-white text-pink border" style="color:#ff4fa3; border-color:#ffe3ef; font-size:10px;">${item.tur}</small>
+                                </div>
+                                <div class="fw-bold fs-5" style="color:#ff4fa3;">${item.fiyat > 0 ? '₺' + item.fiyat.toLocaleString('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '-'}</div>
+                            </div>`;
+                    });
+                }
+                $('#detayListesi').html(html);
+                $('#kombinDetayModal').modal('show');
+            });
+        }
+
+        function kombiniSepeteAtVeGit(kombinId) {
+            $.post('/Kombin/KombiniSepeteEkle/' + kombinId, function (response) {
+                if (response.success) {
+                    window.location.href = '/Sepet/Index';
+                } else {
+                    alert(response.message);
+                }
+            });
+        }
+
+        function kombinSil(id) {
+            if (confirm("Bu kombini tamamen silmek istediğinize emin misiniz?")) {
+                $.post('/Kombin/KombiniSil/' + id, function (response) {
+                    if (response.success) {
+                        location.reload();
+                    } else {
+                        alert(response.message);
+                    }
+                });
+            }
+        }
+    </script>
+}

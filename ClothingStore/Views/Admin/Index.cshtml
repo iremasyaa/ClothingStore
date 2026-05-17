@@ -1,0 +1,104 @@
+﻿@* =================================================================================================================
+ * DOSYA ADI: Index.cshtml (Admin Dashboard / Sistem Özeti)
+ * AMACI: Yönetim panelinin giriş ekranıdır. Mağazadaki kritik verileri (Ürün, Üye, Sipariş, Yorum) 
+ * özet istatistik kartları üzerinden yöneticiye anlık ve görsel bir rapor olarak sunar.
+ * * KULLANILAN TEKNOLOJİLER VE KÜTÜPHANELER:
+ * - Razor View Engine: 'ViewBag' nesneleri aracılığıyla denetleyiciden (Controller) gelen sayısal verilerin işlenmesi.
+ * - Bootstrap 5: Grid sistemi (row/col) kullanılarak oluşturulan 4 sütunlu simetrik dashboard yerleşimi.
+ * - Font-Awesome 6: İstatistik türlerini sembolize eden (fa-shirt, fa-users, fa-comments) ikon setleri.
+ * - CSS3 (Modern Dark UI): Koyu tema (#111) ve canlı pembe (#FF1493) vurgu renkleriyle tasarlanmış ileri seviye arayüz.
+ * * TASARIM VE FONKSİYONEL DETAYLAR:
+ * 1. Dinamik Veri Kartları: Her istatistik bloğu, görsel hiyerarşiyi güçlendiren 'border-left' vurgusu ve gölge efektleriyle ayrıştırılmıştır.
+ * 2. Etkileşimli Hover Efektleri: Kartlar üzerine gelindiğinde yükselme (translateY) ve ikon renginin neon pembeye dönüşme animasyonu.
+ * 3. Merkezi Şablon Entegrasyonu: 'AdminLayout.cshtml' dosyasına bağlanarak panel genelindeki menü ve navigasyon bütünlüğü korunmuştur.
+ * 4. Veri İşaretleme: Canlı veri paneli vurgusu için kullanılan özel badge ve turuncu/pembe tonlu kontrast renk paleti.
+ * 5. UX Kararları: Arka planda tutulan düşük opaklıklı ikonlar, hover durumunda parlayarak yöneticinin odak noktasını netleştirir.
+ ================================================================================================================= *@
+
+@{
+    Layout = "~/Views/Shared/AdminLayout.cshtml";
+}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold text-white">Sistem Özeti</h2>
+        <span class="badge bg-dark border border-turuncu p-2 text-turuncu">Canlı Veri Paneli</span>
+    </div>
+
+    <div class="row">
+        <div class="col-md-3 mb-4">
+            <div class="card-stats p-4 shadow" style="background: #111; border: 1px solid #333; border-left: 5px solid #FF1493;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="text-turuncu fw-bold mb-0">@ViewBag.UrunSayisi</h1>
+                        <p class="text-white-50 mb-0">Ürün Stoğu</p>
+                    </div>
+                    <i class="fa-solid fa-shirt fa-3x text-secondary" style="opacity: 0.5;"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-4">
+            <div class="card-stats p-4 shadow" style="background: #111; border: 1px solid #333; border-left: 5px solid #FF1493;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="text-turuncu fw-bold mb-0">@ViewBag.UyeSayisi</h1>
+                        <p class="text-white-50 mb-0">Kayıtlı Üye</p>
+                    </div>
+                    <i class="fa fa-users fa-3x text-secondary" style="opacity: 0.5;"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-4">
+            <div class="card-stats p-4 shadow" style="background: #111; border: 1px solid #333; border-left: 5px solid #FF1493;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="text-turuncu fw-bold mb-0">@ViewBag.SiparisSayisi</h1>
+                        <p class="text-white-50 mb-0">Toplam Sipariş</p>
+                    </div>
+                    <i class="fa fa-shopping-cart fa-3x text-secondary" style="opacity: 0.5;"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-4">
+            <div class="card-stats p-4 shadow" style="background: #111; border: 1px solid #333; border-left: 5px solid #FF1493;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="text-turuncu fw-bold mb-0">@ViewBag.YorumSayisi</h1>
+                        <p class="text-white-50 mb-0">Müşteri Yorumları</p>
+                    </div>
+                    <i class="fa fa-comments fa-3x text-secondary" style="opacity: 0.5;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .text-turuncu {
+        color: #FF1493 !important;
+    }
+
+    .border-turuncu {
+        border-color: #FF1493 !important;
+    }
+
+    .card-stats {
+        transition: 0.3s;
+        border-radius: 8px;
+    }
+
+        .card-stats:hover {
+            background: #1a1a1a !important;
+            border-color: #444 !important;
+            transform: translateY(-5px);
+        }
+
+            .card-stats:hover i {
+                opacity: 0.9 !important;
+                color: #FF1493 !important;
+                transition: 0.3s;
+            }
+</style>

@@ -1,0 +1,324 @@
+﻿@* =================================================================================================================
+ * DOSYA ADI: SiparisDetay.cshtml
+ * AMACI: Kullanıcının geçmiş veya güncel bir siparişine ait tüm detayları (Ürün listesi, teslimat adresi, 
+ * ödeme tipi, kargo bilgisi ve güncel durum) tek bir panel üzerinden özetler.
+ * * KULLANILAN TEKNOLOJİLER VE KÜTÜPHANELER:
+ * - Razor Logic: 'SiparisDetaylaris' koleksiyonu üzerinden LINQ (Sum) kullanılarak ara toplamın anlık hesaplanması.
+ * - CSS3 Grid & Flexbox: 'detail-grid' mimarisi ile içerik ve özet kısmının yan yana (side-by-side) konumlandırılması.
+ * - Dinamik Status Engine: Razor switch-case bloğu ile sipariş durumuna göre (Alındı, Hazırlanıyor, İptal) 
+ * farklı renk ve ikon setlerinin (Enum-like rendering) tetiklenmesi.
+ * - Asset Management: 'Split' metodu ile veritabanındaki resim yollarının ayrıştırılması ve 'onerror' 
+ * olay yöneticisi ile eksik görsellerin 'resim-yok.png' ile ikame edilmesi.
+ * * TASARIM VE FONKSİYONEL DETAYLAR:
+ * 1. Finansal Şeffaflık: 'N0' formatı ile para birimi gösterimi ve bedava kargo gibi promosyonların vurgulanması.
+ * 2. Veri Güvenliği & Tutarlılık: Null-check kontrolleri ile (Model.SiparisDetaylaris != null) sayfa kırılmalarının önlenmesi.
+ * 3. Görsel Hiyerarşi: Mor (#8a2be2) ve Pembe (#ff4fa3) tonlarıyla oluşturulan 'Soft-Pink' temasına uygun, 
+ * yüksek kontrastlı ve okunabilir tablo yerleşimi.
+ * 4. Navigasyon: 'back-btn' üzerinden sipariş listesine (Siparislerim) hızlı dönüş imkanı.
+ ================================================================================================================= *@
+
+@model ClothingStore.Models.Siparisler
+
+@{
+    ViewData["Title"] = "Sipariş Detayı";
+    decimal gercekToplam = 0;
+    if (Model.SiparisDetaylaris != null)
+    {
+        gercekToplam = Model.SiparisDetaylaris.Sum(x => x.BirimFiyat * x.Adet);
+    }
+}
+
+<style>
+
+    .order-detail-page {
+        padding: 45px 35px;
+        background: #fff9fc; 
+        border-radius: 20px;
+    }
+
+    .detail-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+        .detail-top h1 {
+            color: #ff4fa3; 
+            font-size: 36px;
+            margin: 0;
+            font-weight: 800;
+        }
+
+    .back-btn {
+        background: linear-gradient(to right, #8a2be2, #ff4fa3); 
+        color: white !important;
+        border: none;
+        padding: 12px 18px;
+        border-radius: 14px;
+        text-decoration: none;
+        font-weight: bold;
+        transition: 0.3s ease;
+        display: inline-block;
+    }
+
+        .back-btn:hover {
+            transform: scale(1.05);
+            opacity: 0.92;
+            box-shadow: 0 4px 15px rgba(255, 79, 163, 0.3);
+        }
+
+    .detail-date {
+        color: #8a2be2;
+        margin-top: 5px;
+        margin-bottom: 25px;
+        font-weight: 500;
+    }
+
+    .detail-grid {
+        display: flex;
+        gap: 25px;
+        align-items: flex-start;
+    }
+
+    .detail-left {
+        flex: 1;
+    }
+
+    .detail-box {
+        background: #fff;
+        border-radius: 22px;
+        margin-bottom: 24px;
+        box-shadow: 0 8px 24px rgba(255, 79, 163, 0.08);
+        overflow: hidden;
+        border: 1px solid #ffe1f0;
+    }
+
+        .detail-box h3 {
+            padding: 22px 24px;
+            margin: 0;
+            border-bottom: 1px solid #ffe1f0;
+            font-size: 21px;
+            color: #8a2be2; 
+            font-weight: 700;
+        }
+
+    .info-grid {
+        display: flex;
+        justify-content: space-between;
+        padding: 25px;
+        gap: 20px;
+    }
+
+        .info-grid h4 {
+            color: #ff4fa3; 
+            font-size: 13px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+    .detail-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+        .detail-table th {
+            background: #fdf2f8; 
+            padding: 14px;
+            text-align: left;
+            font-size: 14px;
+            color: #8a2be2; 
+        }
+
+        .detail-table td {
+            padding: 22px 16px;
+            border-top: 1px solid #ffe1f0;
+            vertical-align: middle;
+        }
+
+    .product-cell {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+        .product-cell img {
+            width: 70px;
+            height: 90px;
+            object-fit: contain;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #ffe1f0;
+        }
+
+    .detail-summary {
+        width: 350px;
+        background: #fff;
+        border-radius: 22px;
+        padding: 28px;
+        box-shadow: 0 8px 24px rgba(255, 79, 163, 0.1);
+        border: 1px solid #ffe1f0;
+    }
+
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 18px;
+        color: #666;
+        font-size: 16px;
+        font-weight: 600;
+    }
+
+    .summary-total {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 25px;
+        padding-top: 20px;
+        border-top: 2px solid #ff4fa3; 
+        font-size: 22px;
+        font-weight: 800;
+        color: #8a2be2; 
+    }
+
+    .status-box {
+        margin-top: 25px;
+        padding: 16px;
+        border-radius: 12px;
+        font-weight: bold;
+        text-align: center;
+        font-size: 14px;
+    }
+
+    .status-success {
+        background: #ecfdf5;
+        color: #10b981;
+    }
+
+    .status-pending {
+        background: #fffbeb;
+        color: #f59e0b;
+    }
+
+    .status-cancel {
+        background: #fef2f2;
+        color: #dc2626;
+    }
+</style>
+
+<div class="order-detail-page">
+    <div class="detail-top">
+        <h1>Sipariş #@Model.SiparisId</h1>
+        <a href="/Account/Siparislerim" class="back-btn">
+            ← Listeye Dön
+        </a>
+    </div>
+
+    <p class="detail-date">📅 @Model.Tarih?.ToString("dd MMMM yyyy HH:mm")</p>
+
+    <div class="detail-grid">
+        @* SOL TARAF *@
+        <div class="detail-left">
+            <div class="detail-box">
+                <h3>Teslimat ve Ödeme Bilgileri</h3>
+                <div class="info-grid">
+                    <div>
+                        <h4>TESLİMAT ADRESİ</h4>
+                        <p>📍 @(string.IsNullOrEmpty(Model.TeslimatAdresi) ? "Erzurum / Merkez" : Model.TeslimatAdresi)</p>
+                    </div>
+                    <div>
+                        <h4>KARGO & ÖDEME</h4>
+                        <p>🚚 @(Model.Kargo != null ? Model.Kargo.FirmaAdi : "Aras Kargo")</p>
+                        <p>💳 @(string.IsNullOrEmpty(Model.OdemeTipi) ? "Kredi Kartı" : Model.OdemeTipi)</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="detail-box">
+                <h3>Sipariş İçeriği</h3>
+                <table class="detail-table">
+                    <thead>
+                        <tr>
+                            <th>Ürün</th>
+                            <th>Fiyat</th>
+                            <th style="text-align: center;">Adet</th>
+                            <th style="text-align: right;">Tutar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.SiparisDetaylaris != null)
+                        {
+                            foreach (var detay in Model.SiparisDetaylaris)
+                            {
+                                var resimAdi = "resim-yok.png";
+                                if (detay.Urun != null && !string.IsNullOrEmpty(detay.Urun.ResimYolu))
+                                {
+                                    resimAdi = detay.Urun.ResimYolu.Split(',')[0].Trim();
+                                }
+
+                                <tr>
+                                    <td class="product-cell">
+                                        <img src="/img/@resimAdi" onerror="this.src='/img/resim-yok.png';">
+                                        <div>
+                                            <div class="fw-bold" style="color:#333;">@detay.Urun?.UrunAdi</div>
+                                            @if (detay.Beden != null)
+                                            {
+                                                <small class="text-muted">Beden: @detay.Beden.BedenTanimi</small>
+                                            }
+                                        </div>
+                                    </td>
+                                    <td>@detay.BirimFiyat.ToString("N0") TL</td>
+                                    <td style="text-align: center;">@detay.Adet</td>
+                                    <td style="text-align: right; color:#ff4fa3;" class="fw-bold">@((detay.BirimFiyat * detay.Adet).ToString("N0")) TL</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="detail-summary">
+            <h3 style="color: #8a2be2; font-size: 20px; font-weight: 700; margin-bottom: 20px;">Sipariş Özeti</h3>
+
+            <div class="summary-row">
+                <span>Ara Toplam</span>
+                <span>@gercekToplam.ToString("N0") TL</span>
+            </div>
+
+            <div class="summary-row">
+                <span>Kargo</span>
+                <span style="color:#10b981;">Bedava</span>
+            </div>
+
+            <div class="summary-total">
+                <span>Genel Toplam</span>
+                <span>@gercekToplam.ToString("N0") TL</span>
+            </div>
+
+            @{
+                string statusClass = "status-success";
+                string statusIcon = "✔";
+                string statusText = "Sipariş başarıyla alındı.";
+
+                switch (Model.Durum)
+                {
+                    case "Sipariş Alındı":
+                    case "Hazırlanıyor":
+                        statusClass = "status-pending";
+                        statusIcon = "⏳";
+                        statusText = "Sipariş hazırlanıyor.";
+                        break;
+                    case "İptal Edildi":
+                        statusClass = "status-cancel";
+                        statusIcon = "✖";
+                        statusText = "Sipariş iptal edildi.";
+                        break;
+                }
+            }
+
+            <div class="status-box @statusClass">
+                @statusIcon @statusText
+            </div>
+        </div>
+    </div>
+</div>

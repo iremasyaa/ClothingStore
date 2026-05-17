@@ -1,0 +1,44 @@
+﻿@* =================================================================================================================
+ * DOSYA ADI: Error.cshtml (Genel Hata Sayfası)
+ * AMACI: Uygulama çalışma zamanında (runtime) bir istisna (exception) oluştuğunda tetiklenen merkezi 
+ * hata ekranıdır. Kullanıcıya dostane bir uyarı sunarken, geliştiricilere hata takibi için benzersiz 
+ * bir istek kimliği (Request ID) sağlar.
+ * * KULLANILAN TEKNOLOJİLER VE KÜTÜPHANELER:
+ * - Razor View Engine: 'ErrorViewModel' üzerinden hata detaylarının ve mantıksal kontrollerin işlenmesi.
+ * - Bootstrap 5: 'text-danger' gibi hazır sınıflar ile görsel uyarı mesajlarının stilize edilmesi.
+ * * TASARIM VE FONKSİYONEL DETAYLAR:
+ * 1. Dinamik İstek Kimliği (Request ID): 'Model.ShowRequestId' kontrolü ile hataya özel üretilen 
+ * benzersiz ID'nin gösterilmesi; bu sayede log kayıtlarında hatanın kolayca izlenmesi sağlanır.
+ * 2. Güvenlik Katmanı: Canlı ortamda (Production) hassas kod detaylarının ve sunucu bilgilerinin 
+ * son kullanıcıya sızmasını engelleyen profesyonel bir bariyer görevi görür.
+ * 3. Geliştirici Bilgilendirmesi: 'Development Mode' açıklaması ile yerel geliştirme ortamında 
+ * daha detaylı hata raporlamasının (StackTrace vb.) nasıl aktif edileceğine dair rehberlik sunar.
+ * 4. UX/UI Standartları: Sade, anlaşılır ve kritik durumu temsil eden kırmızı vurgulu (danger) 
+ * metin yerleşimi.
+ ================================================================================================================= *@
+
+@model ClothingStore.Models.ErrorViewModel
+@{
+    ViewData["Title"] = "Error";
+}
+
+<h1 class="text-danger">Error.</h1>
+<h2 class="text-danger">An error occurred while processing your request.</h2>
+
+@if (Model.ShowRequestId)
+{
+    <p>
+        <strong>Request ID:</strong> <code>@Model.RequestId</code>
+    </p>
+}
+
+<h3>Development Mode</h3>
+<p>
+    Swapping to <strong>Development</strong> environment will display more detailed information about the error that occurred.
+</p>
+<p>
+    <strong>The Development environment shouldn't be enabled for deployed applications.</strong>
+    It can result in displaying sensitive information from exceptions to end users.
+    For local debugging, enable the <strong>Development</strong> environment by setting the <strong>ASPNETCORE_ENVIRONMENT</strong> environment variable to <strong>Development</strong>
+    and restarting the app.
+</p>

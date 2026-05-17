@@ -1,0 +1,251 @@
+﻿@* =================================================================================================================
+ * DOSYA ADI: Index.cshtml (Ürün Katalog ve Filtreleme Sayfası)
+ * AMACI: Mağazada bulunan tüm ürünleri kullanıcıya liste halinde sunar. Sol paneldeki gelişmiş filtreleme 
+ * seçenekleri (Kategori, Beden, Renk, Arama) ve sıralama motoru ile ürün keşfini kolaylaştırır.
+ * * KULLANILAN TEKNOLOJİLER VE KÜTÜPHANELER:
+ * - Razor View Engine: 'List<Urunler>' modeli ve ViewBag verileri üzerinden dinamik içerik oluşturma.
+ * - CSS3 (Modern E-Commerce UI): 'filter-card' tasarımı, ürün kartı hover animasyonları ve neon pembe (#FF1493) detaylar.
+ * - Bootstrap 5 Grid: Sol filtre paneli (col-md-3) ve sağ ürün listesi (col-md-9) arasındaki dengeli yerleşim.
+ * - Font-Awesome 6: Filtre ve ürün kartı ikonografisi desteği.
+ * * TASARIM VE FONKSİYONEL DETAYLAR:
+ * 1. Çok Katmanlı Filtreleme: Kullanıcının kategori, beden ve renk tercihlerini anlık olarak URL 
+ * parametrelerine aktaran ve sunucu tarafında işleyen form yapısı.
+ * 2. Dinamik Sıralama (Sorting): Fiyata (Artan/Azalan), yeniliğe ve satış oranına göre sonuçları 
+ * 'onchange' tetikleyicisiyle sayfa yenilenmeden güncelleyen seçici mekanizma.
+ * 3. Akıllı Resim İşleme: Veritabanında kayıtlı çoklu resim yollarından sadece ilkini (Split[0]) 
+ * çekerek performanslı yükleme sağlayan görsel yönetim mantığı.
+ * 4. UX Standartları: 'Sonuç Bulunamadı' durumları için uyarı pencereleri, 'text-truncate' ile 
+ * uzun ürün isimlerinin sınırlandırılması ve favori ikonu (fav-heart) entegrasyonu.
+ * 5. Veri Doğrulama: 'ViewBag.LimitUyarisi' ve 'badge' yapıları ile kullanıcıya bulunan toplam 
+ * ürün sayısı hakkında anlık bilgilendirme sunumu.
+ ================================================================================================================= *@
+
+@model List<ClothingStore.Models.Urunler>
+@{
+    ViewData["Title"] = "Ürünler";
+}
+
+<style>
+
+    .filter-card {
+        background: white;
+        border: 1px solid #FF1493;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(255, 96, 0, 0.05);
+    }
+
+    .filter-title {
+        color: #FF1493;
+        font-weight: bold;
+        border-bottom: 2px solid #FF1493;
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+        text-transform: uppercase;
+        font-size: 14px;
+    }
+
+    .form-label {
+        font-size: 12px;
+        font-weight: bold;
+        color: #555;
+    }
+
+    .form-select, .form-control {
+        font-size: 13px;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+    }
+
+        .form-select:focus, .form-control:focus {
+            border-color: #FF1493;
+            box-shadow: 0 0 5px rgba(255, 96, 0, 0.2);
+        }
+
+    .btn-filtre {
+        background: #FF1493;
+        color: white;
+        width: 100%;
+        font-weight: bold;
+        border: none;
+        padding: 10px;
+        border-radius: 5px;
+        transition: 0.3s;
+    }
+
+        .btn-filtre:hover {
+            background: #e55600;
+        }
+
+    .urun-card {
+        border: 1px solid #e0e0e0;
+        border-radius: 5px;
+        padding: 10px;
+        background: white;
+        height: 100%;
+        text-align: center;
+        position: relative;
+        transition: 0.3s;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+        .urun-card:hover {
+            border-color: #FF1493;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+    .fiyat {
+        color: #FF1493;
+        font-size: 18px;
+        font-weight: bold;
+        margin-top: 5px;
+    }
+
+    .fav-heart {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        color: #ccc;
+        cursor: pointer;
+        z-index: 2;
+    }
+
+        .fav-heart:hover {
+            color: #FF1493;
+        }
+</style>
+
+<div class="container mt-4">
+    <div class="row">
+
+        <div class="col-md-3">
+            <div class="filter-card">
+                <div class="filter-title"><i class="fa fa-filter"></i> Detaylı Arama</div>
+
+                <form action="/Urun/TumUrunler" method="get">
+                    <input type="hidden" name="siralama" value="@ViewBag.SeciliSiralama" />
+
+                    <div class="mb-3">
+                        <label class="form-label">Ürün Ara</label>
+                        <input type="text" name="aranacakKelime" class="form-control" value="@ViewBag.Aranan" placeholder="Örn: Siyah Tişört">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Kategori</label>
+                        <select name="kategoriId" class="form-select">
+                            <option value="">Tümü</option>
+                            @if (ViewBag.Kategoriler != null)
+                            {
+                                foreach (var kat in ViewBag.Kategoriler as List<ClothingStore.Models.Kategoriler>)
+                                {
+                                    <!option value="@kat.KategoriId" @(ViewBag.SeciliKategori?.ToString() == kat.KategoriId.ToString() ? "selected" : "")>@kat.KategoriAdi</!option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Beden</label>
+                        <select name="beden" class="form-select">
+                            <option value="">Tümü</option>
+                            @if (ViewBag.Bedenler != null)
+                            {
+                                foreach (var bd in ViewBag.Bedenler as List<string>)
+                                {
+                                    <!option value="@bd" @(ViewBag.SeciliBeden == bd ? "selected" : "")>@bd</!option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Renk</label>
+                        <select name="renk" class="form-select">
+                            <option value="">Tümü</option>
+                            @if (ViewBag.Renkler != null)
+                            {
+                                foreach (var rnk in ViewBag.Renkler as List<string>)
+                                {
+                                    <!option value="@rnk" @(ViewBag.SeciliRenk == rnk ? "selected" : "")>@rnk</!option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn-filtre">FİLTRELE</button>
+
+                    <a href="/Urun/TumUrunler" class="btn btn-sm btn-light w-100 mt-2 text-muted border">Temizle</a>
+                </form>
+            </div>
+        </div>
+
+        <div class="col-md-9">
+            <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+                <h5 class="m-0 text-secondary">
+                    Sonuçlar <small class="text-warning">@ViewBag.LimitUyarisi</small>
+                    <span class="badge bg-secondary ms-2">@Model.Count Adet</span>
+                </h5>
+
+                <form action="/Urun/TumUrunler" method="get" class="d-flex align-items-center">
+                    <input type="hidden" name="kategoriId" value="@ViewBag.SeciliKategori" />
+                    <input type="hidden" name="beden" value="@ViewBag.SeciliBeden" />
+                    <input type="hidden" name="renk" value="@ViewBag.SeciliRenk" />
+                    <input type="hidden" name="aranacakKelime" value="@ViewBag.Aranan" />
+
+                    <select name="siralama" class="form-select form-select-sm" style="width:160px;" onchange="this.form.submit()">
+                        <!option value="" @(ViewBag.SeciliSiralama == null ? "selected" : "")>Önerilen</!option>
+                        <!option value="fiyat_artan" @(ViewBag.SeciliSiralama == "fiyat_artan" ? "selected" : "")>En Düşük Fiyat</!option>
+                        <!option value="fiyat_azalan" @(ViewBag.SeciliSiralama == "fiyat_azalan" ? "selected" : "")>En Yüksek Fiyat</!option>
+                        <!option value="yeni" @(ViewBag.SeciliSiralama == "yeni" ? "selected" : "")>Yeni Eklenenler</!option>
+                        <!option value="coksatan" @(ViewBag.SeciliSiralama == "coksatan" ? "selected" : "")>Çok Satanlar</!option>
+                    </select>
+                </form>
+            </div>
+
+            @if (Model.Count == 0)
+            {
+                <div class="alert alert-warning text-center">Aradığınız kriterlere uygun ürün bulunamadı.</div>
+            }
+            else
+            {
+                <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3">
+                    @foreach (var urun in Model)
+                    {
+                        <div class="col">
+                            <div class="urun-card">
+                                <a href="/Account/FavoriEkleCikar?urunId=@urun.UrunId" class="text-decoration-none">
+                                    <i class="fa fa-heart fav-heart"></i>
+                                </a>
+
+                                <a href="/Urun/Detay/@urun.UrunId" class="text-decoration-none">
+                                    @if (!string.IsNullOrEmpty(urun.ResimYolu))
+                                    {
+                                        <img src="@(urun.ResimYolu.StartsWith("http") ? urun.ResimYolu.Split(',')[0] : "/img/" + urun.ResimYolu.Split(',')[0])" style="height:200px; object-fit:contain;" class="mb-2 w-100" alt="@urun.UrunAdi" />
+                                    }
+                                    else
+                                    {
+                                        <div style="height:200px; background:#f9f9f9; display:flex; align-items:center; justify-content:center; color:#ddd; font-weight:bold; margin-bottom:10px;">
+                                            <i class="fa fa-tshirt fa-3x"></i>
+                                        </div>
+                                    }
+                                    <div class="text-truncate fw-bold text-dark small" title="@urun.UrunAdi">@urun.UrunAdi</div>
+                                </a>
+
+                                @{
+                                    var anaKatId = urun.KategoriId?.Split(',')[0];
+                                    var katAd = ((List<ClothingStore.Models.Kategoriler>)ViewBag.Kategoriler)
+                                    ?.FirstOrDefault(k => k.KategoriId.ToString() == anaKatId)?.KategoriAdi;
+                                }
+                                <div class="small text-secondary text-truncate">@(katAd ?? "")</div>
+                                <div class="fiyat">@urun.Fiyat.ToString("C2")</div>
+                                <a href="/Urun/Detay/@urun.UrunId" class="btn btn-sm btn-outline-secondary w-100 mt-2">İNCELE</a>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>

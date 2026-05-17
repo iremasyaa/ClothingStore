@@ -1,0 +1,183 @@
+﻿@* =================================================================================================================
+ * DOSYA ADI: Favorilerim.cshtml
+ * AMACI: Kullanıcıların beğendikleri ve takip etmek istedikleri ürünleri kişisel listelerinde 
+ * görüntülemelerini, yönetmelerini ve doğrudan sepete aktarmalarını sağlayan kullanıcı arayüzüdür.
+ * * KULLANILAN TEKNOLOJİLER VE KÜTÜPHANELER:
+ * - Razor View Engine: 'List<Urunler>' model yapısı üzerinden favori ürün verilerinin dinamik olarak işlenmesi.
+ * - CSS3 (Advanced UI): 'linear-gradient' ile harmanlanmış sabit arka plan (fixed background) ve modern kart tasarımları.
+ * - Font-Awesome 6: Etkileşimli kalp ikonları ve sepet görselleriyle zenginleştirilmiş kullanıcı deneyimi.
+ * - Bootstrap 5 & Flexbox: Ürün kartlarının ekran boyutuna göre otomatik hizalandığı duyarlı (responsive) yapı.
+ * * TASARIM VE FONKSİYONEL DETAYLAR:
+ * 1. Dinamik Liste Yönetimi: Kullanıcının favori ürün sayısı Model.Count ile anlık olarak takip edilir ve gösterilir.
+ * 2. Akıllı Resim İşleme: Veritabanındaki virgülle ayrılmış çoklu resim yollarından ilk görselin (index 0) otomatik çekilmesi.
+ * 3. Etkileşimli Kartlar: Hover efekti ile yükselen (translateY) kart tasarımları ve doğrudan sepet aksiyonuna bağlanan butonlar.
+ * 4. Boş Durum Kontrolü (Empty State): Liste boş olduğunda kullanıcıyı 'Keşfetmeye Başla' butonuyla mağazaya yönlendiren mantıksal yapı.
+ ================================================================================================================= *@
+
+@model List<ClothingStore.Models.Urunler>
+@{
+    ViewData["Title"] = "Favorilerim";
+}
+
+<style>
+    .favorites-page {
+        min-height: 100vh;
+        padding: 40px 20px;
+        text-align: center;
+        background-image: linear-gradient(rgba(255, 240, 245, 0.78), rgba(255, 240, 245, 0.78)), url("/images/banner/e3db52813e8109c051bbf4494bdfc8e7.jpg");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+        border-radius: 20px;
+    }
+
+        .favorites-page h2 {
+            margin-bottom: 10px;
+            color: #333;
+            font-weight: 800;
+            font-size: 32px;
+        }
+
+    .favorites-subtitle {
+        color: #666;
+        margin-bottom: 30px;
+        font-size: 14px;
+    }
+
+    .favorites-list {
+        display: flex;
+        justify-content: center;
+        gap: 25px;
+        flex-wrap: wrap;
+        margin-top: 30px;
+    }
+
+    .favorite-card {
+        background: white;
+        padding: 20px;
+        width: 240px;
+        border-radius: 20px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        text-align: center;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+        .favorite-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 15px 35px rgba(124, 58, 237, 0.15);
+        }
+
+    .remove-fav {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        color: #ff4fa3;
+        font-size: 20px;
+        transition: 0.3s;
+        z-index: 5;
+    }
+
+        .remove-fav:hover {
+            transform: scale(1.2);
+            color: #7c3aed;
+        }
+
+    .favorite-card img {
+        width: 100%;
+        height: 180px;
+        object-fit: contain;
+        border-radius: 15px;
+        margin-bottom: 15px;
+    }
+
+    .favorite-card h3 {
+        margin: 10px 0 5px 0;
+        font-size: 16px;
+        color: #333;
+        font-weight: 700;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .favorite-card .price {
+        font-size: 20px;
+        color: #ff4fa3;
+        font-weight: 800;
+        margin: 10px 0;
+    }
+
+    .favorite-card .btn-add-cart {
+        background: linear-gradient(135deg, #ff4fa3, #7c3aed) !important;
+        color: white !important;
+        border: none;
+        padding: 12px;
+        border-radius: 14px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: 0.3s ease;
+        text-decoration: none;
+        font-size: 14px;
+        margin-top: auto;
+    }
+
+        .favorite-card .btn-add-cart:hover {
+            transform: scale(1.05);
+            background: linear-gradient(135deg, #7c3aed, #ff4fa3) !important;
+            box-shadow: 0 5px 15px rgba(255, 79, 163, 0.3);
+        }
+
+    .empty-fav {
+        padding: 100px 20px;
+    }
+</style>
+
+<section class="favorites-page">
+    <h2>Favorilerim</h2>
+    <p class="favorites-subtitle">Toplam @Model.Count ürün beğendiniz.</p>
+
+    @if (Model == null || !Model.Any())
+    {
+        <div class="empty-fav">
+            <div style="font-size: 60px; margin-bottom: 20px;">🤍</div>
+            <p class="text-muted">Listenizde henüz hiç ürün yok.</p>
+            <a href="/Urun/TumUrunler" class="btn-add-cart d-inline-block px-5 mt-3">Keşfetmeye Başla</a>
+        </div>
+    }
+    else
+    {
+        <div class="favorites-list">
+            @foreach (var urun in Model)
+            {
+                <div class="favorite-card">
+                    <a href="/Account/FavoriEkleCikar?UrunId=@urun.UrunId" class="remove-fav" title="Favorilerden Kaldır">
+                        <i class="fa-solid fa-heart"></i>
+                    </a>
+                    <a href="/Urun/Detay/@urun.UrunId" style="text-decoration:none;">
+                        @if (!string.IsNullOrEmpty(urun.ResimYolu))
+                        {
+                            var resim = urun.ResimYolu.Split(',')[0].Trim();
+                            <img src="/img/@resim" alt="@urun.UrunAdi">
+                        }
+                        else
+                        {
+                            <div style="height:180px; background:#f5f5f5; border-radius:15px; display:flex; align-items:center; justify-content:center; color:#999;">Resim Yok</div>
+                        }
+                        <h3>@urun.UrunAdi</h3>
+                    </a>
+
+                    <p class="price">@urun.Fiyat.ToString("N2") TL</p>
+
+                    <a href="/Sepet/Ekle?UrunId=@urun.UrunId" class="btn-add-cart">
+                        <i class="fa-solid fa-cart-shopping me-2"></i> SEPETE EKLE
+                    </a>
+                </div>
+            }
+        </div>
+    }
+</section>

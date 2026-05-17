@@ -1,0 +1,21 @@
+﻿@* =================================================================================================================
+ * DOSYA ADI: _ValidationScriptsPartial.cshtml (İstemci Taraflı Doğrulama Şablonu)
+ * AMACI: ASP.NET Core MVC projelerinde model seviyesinde tanımlanan doğrulama kurallarının (Required, StringLength vb.) 
+ * tarayıcı üzerinde eşzamanlı olarak çalışmasını sağlayan kütüphaneleri sisteme dahil eder.
+ * * KULLANILAN TEKNOLOJİLER VE KÜTÜPHANELER:
+ * - jQuery Validation: Form elemanlarının içeriklerini kontrol eden ve hata mesajlarını yöneten temel motor.
+ * - Unobtrusive Validation: Microsoft tarafından geliştirilen, HTML5 'data-' öznitelikleri aracılığıyla 
+ * jQuery doğrulama kurallarını otomatik olarak eşleştiren eklenti.
+ * * TASARIM VE FONKSİYONEL DETAYLAR:
+ * 1. Sayfa Performansı: Form verileri sunucuya (Server) gönderilmeden önce istemci tarafında denetlendiği için 
+ * gereksiz trafik oluşmasını engeller ve kullanıcılara anlık hata geri bildirimi sağlar.
+ * 2. Merkezi Yönetim: Şablon (Partial View) yapısı sayesinde, sadece doğrulama gerektiren sayfalarda 
+ * '@await Html.PartialAsync("_ValidationScriptsPartial")' komutuyla çağrılmasına olanak tanır.
+ * 3. Hata Senkronizasyonu: C# tarafındaki DataAnnotation kuralları ile JavaScript tarafındaki kontrollerin 
+ * tek bir merkezden (Model seviyesinden) yönetilmesini destekler.
+ * 4. UX Standartları: Kullanıcının formu doldururken yaptığı hataları "sayfa yenilenmeden" görmesini sağlayarak 
+ * formu baştan doldurma zahmetini ortadan kaldırır.
+ ================================================================================================================= *@
+
+<script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
+<script src="~/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js"></script>

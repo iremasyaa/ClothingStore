@@ -1,0 +1,307 @@
+﻿@* =================================================================================================================
+ * DOSYA ADI: Index.cshtml (Alışveriş Sepeti Yönetimi)
+ * AMACI: Kullanıcının sepetine eklediği ürünleri listelemesini, ürün adetlerini ve beden seçeneklerini anlık 
+ * olarak değiştirmesini, indirimli toplam tutarı görmesini ve ödeme adımına geçmesini sağlar.
+ * * KULLANILAN TEKNOLOJİLER VE KÜTÜPHANELER:
+ * - Razor View Engine: 'List<Sepet>' modeli üzerinden ürün verilerinin, stok durumlarının ve fiyatların işlenmesi.
+ * - JavaScript (Fetch API): Sayfa yenilenmeden arka planda adet ve beden güncellemelerini sağlayan modern HTTP talepleri.
+ * - CSS3 (Modern Cart UI): 'sticky-top' özet kartı, pastel 'Soft-Pink' teması ve 'linear-gradient' buton tasarımları.
+ * - Bootstrap 5 Grid: Ürün listesi ve sipariş özeti arasında dinamik (8-4) sütun yerleşimi.
+ * * TASARIM VE FONKSİYONEL DETAYLAR:
+ * 1. Dinamik Sepet Hesaplamaları: Razor döngüsü içerisinde ürün fiyatları ve adetleri üzerinden 
+ * 'araToplam' hesabı; ardından otomatik %20 kampanya indirimi ve kargo hesaplama mantığı.
+ * 2. Akıllı Varyant Yönetimi: Sepet satırı üzerinde, ürünün o anki stok durumuna göre mevcut bedenlerin 
+ * listelenmesi ve 'onchange' tetikleyicisi ile anlık tercih değişikliği imkanı.
+ * 3. Asenkron Adet Kontrolü: 'SepetGuncelle' fonksiyonu ile miktar değişikliklerinin sunucu tarafında 
+ * anlık işlenmesi ve arayüzün senkronize tutulması.
+ * 4. UX/UI Standartları: Boş sepet durumunda (Empty State) yönlendirici ikon kullanımı, 'variant-badge' 
+ * ile ürün özelliklerinin belirginleştirilmesi ve neon pembe (#ff7eb3) vurgu rengi.
+ * 5. Güvenli Silme Akışı: 'remove-btn-custom' üzerinden tek tıkla ürünün sepetten fiziksel olarak kaldırılması.
+ ================================================================================================================= *@
+
+@model List<ClothingStore.Models.Sepet>
+@{
+    ViewData["Title"] = "Sepetim";
+    decimal araToplam = 0;
+}
+
+<style>
+    body {
+        background-color: #fdf8fd;
+    }
+
+    .cart-header-box {
+        background: white;
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 10px 30px rgba(167, 112, 239, 0.05);
+        margin-bottom: 30px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+
+    .cart-item-card {
+        background: white;
+        border-radius: 20px;
+        padding: 20px;
+        margin-bottom: 20px;
+        border: none;
+        box-shadow: 0 8px 25px rgba(167, 112, 239, 0.05);
+        display: flex;
+        align-items: center;
+        position: relative;
+    }
+
+    .product-img-wrapper {
+        width: 100px;
+        height: 130px;
+        background: #f8f0f8;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+    .product-details {
+        margin-left: 25px;
+        flex-grow: 1;
+    }
+
+    .product-name {
+        font-weight: 800;
+        font-size: 1.1rem;
+        color: #333;
+        margin-bottom: 5px;
+        text-decoration: none !important;
+    }
+
+    .product-price {
+        color: #8a4baf;
+        font-weight: 800;
+        font-size: 1.2rem;
+        margin-bottom: 12px;
+    }
+
+    .variant-badge {
+        background-color: #fff0f5;
+        color: #ff7eb3;
+        border-radius: 30px;
+        padding: 6px 15px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .cart-size-select {
+        border: none;
+        background: transparent;
+        color: #ff7eb3;
+        font-weight: 800;
+        cursor: pointer;
+        outline: none;
+        padding: 0;
+    }
+
+    .remove-btn-custom {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: #fff0f5;
+        color: #ff7eb3;
+        border: none;
+        border-radius: 8px;
+        padding: 5px 12px;
+        font-size: 0.75rem;
+        font-weight: bold;
+        transition: 0.3s;
+        text-decoration: none;
+    }
+
+        .remove-btn-custom:hover {
+            background: #ff7eb3;
+            color: white;
+        }
+
+    .summary-card {
+        background: white;
+        border-radius: 25px;
+        padding: 30px;
+        box-shadow: 0 15px 35px rgba(167, 112, 239, 0.1);
+        position: sticky;
+        top: 20px;
+    }
+
+    .btn-checkout {
+        background: linear-gradient(135deg, #FF69B4 0%, #8a2be2 100%) !important;
+        color: white !important;
+        border: none;
+        border-radius: 15px;
+        padding: 15px;
+        font-weight: 800;
+        font-size: 1.1rem;
+        transition: 0.3s;
+        text-decoration: none;
+        display: block;
+        text-align: center;
+    }
+
+        .btn-checkout:hover {
+            transform: translateY(-3px);
+            filter: brightness(1.1);
+            box-shadow: 0 10px 20px rgba(138, 43, 226, 0.3);
+        }
+
+    .qty-input {
+        width: 60px;
+        border: 1px solid #eee;
+        border-radius: 8px;
+        text-align: center;
+        font-weight: bold;
+    }
+</style>
+
+<div class="container mt-5 mb-5">
+    <div class="cart-header-box">
+        <div style="background: #fff0f5; padding: 15px; border-radius: 12px;">
+            <i class="fa fa-shopping-cart" style="color: #ff7eb3; font-size: 1.5rem;"></i>
+        </div>
+        <div>
+            <h2 class="mb-1" style="font-weight: 800; color: #333;">Sepetim</h2>
+            <p class="text-muted small mb-0">Sepetindeki ürünleri gözden geçir ve alışverişine devam et.</p>
+        </div>
+    </div>
+
+    @if (Model == null || !Model.Any())
+    {
+        <div class="text-center p-5">
+            <i class="fa fa-shopping-bag fa-4x mb-3" style="color: #eee;"></i>
+            <h4 class="text-muted">Sepetiniz şu an boş.</h4>
+            <a href="/Home/Index" class="btn btn-checkout mt-3 px-5">Alışverişe Başla</a>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-lg-8">
+                @foreach (var item in Model)
+                {
+                    decimal urunFiyati = item.Urun?.Fiyat ?? 0;
+                    int adet = item.Adet ?? 1;
+                    araToplam += (adet * urunFiyati);
+
+                    var resim = "/img/resim-yok.png";
+                    if (!string.IsNullOrEmpty(item.Urun?.ResimYolu))
+                    {
+                        resim = "/img/" + item.Urun.ResimYolu.Split(',')[0].Trim();
+                    }
+
+                    <div class="cart-item-card">
+                        <a href="/Urun/Detay/@item.UrunId" class="product-img-wrapper">
+                            <img src="@resim" style="width: 100%; height: 100%; object-fit: contain;" onerror="this.src='/img/resim-yok.png';" />
+                        </a>
+
+                        <div class="product-details">
+                            <a href="/Urun/Detay/@item.UrunId" class="product-name">@item.Urun?.UrunAdi</a>
+                            <div class="product-price">@urunFiyati.ToString("N0") TL</div>
+
+                            <div class="variant-badge">
+                                <span>Beden:</span>
+                                <select class="cart-size-select custom-pink-select" onchange="BedenGuncelle(@item.SepetId, this.value)">
+                                    @if (item.Urun?.UrunBedenStok != null && item.Urun.UrunBedenStok.Any())
+                                    {
+                                        foreach (var stok in item.Urun.UrunBedenStok.Where(s => s.StokAdedi > 0))
+                                        {
+                                            if (item.BedenId == stok.BedenId)
+                                            {
+                                                <option value="@stok.BedenId" selected>@stok.Beden?.BedenTanimi</option>
+                                            }
+                                            else
+                                            {
+                                                <option value="@stok.BedenId">@stok.Beden?.BedenTanimi</option>
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <option value="@item.BedenId" selected>@(item.Beden?.BedenTanimi ?? "Standart")</option>
+                                    }
+                                </select>
+                                <span>|</span>
+                                <span>
+                                    Adet:
+                                    <input type="number" value="@adet" min="1" max="99" onchange="SepetGuncelle(@item.SepetId, this.value)" class="qty-input custom-pink-input">
+                                </span>
+                            </div>
+                        </div>
+
+                        <a href="/Sepet/Sil/@item.SepetId" class="remove-btn-custom">Sil</a>
+                    </div>
+                }
+            </div>
+
+            <div class="col-lg-4">
+                @{
+                    decimal indirimTutari = araToplam * 0.20m;
+                    decimal odenecekTutar = araToplam - indirimTutari;
+                }
+                <div class="summary-card">
+                    <h4 class="fw-bold mb-4">Sipariş Özeti</h4>
+
+                    <div class="d-flex justify-content-between mb-3 text-muted fw-bold">
+                        <span>Ürün Tutarı</span>
+                        <span>@araToplam.ToString("N0") TL</span>
+                    </div>
+
+                    <div class="d-flex justify-content-between mb-3 text-muted fw-bold">
+                        <span>Kargo</span>
+                        <span class="text-success">Ücretsiz</span>
+                    </div>
+
+                    <div class="d-flex justify-content-between mb-4 text-danger fw-bold">
+                        <span>%20 İndirim</span>
+                        <span>- @indirimTutari.ToString("N0") TL</span>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center pt-3 mb-4" style="border-top: 2px solid #f8f0f8;">
+                        <span class="h5 fw-bold mb-0">Toplam</span>
+                        <span class="h3 fw-bold" style="color:#8a4baf;">@odenecekTutar.ToString("N0") TL</span>
+                    </div>
+
+                    <a href="/Sepet/SatinAl" class="btn btn-checkout w-100 mb-3">Ödemeye Geç</a>
+
+                    <div class="text-center">
+                        <a href="/Home/Index" class="text-muted small fw-bold text-decoration-none">Alışverişe Devam Et</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<script>
+    function BedenGuncelle(sepetId, yeniBedenId) {
+        fetch('/Sepet/BedenGuncelle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'sepetId=' + sepetId + '&yeniBedenId=' + yeniBedenId
+        }).then(response => {
+            if (response.ok) { location.reload(); }
+            else { alert("Beden güncellenirken bir hata oluştu."); }
+        });
+    }
+
+    function SepetGuncelle(sepetId, yeniAdet) {
+        if (yeniAdet < 1) { location.reload(); return; }
+        fetch('/Sepet/AdetGuncelle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'sepetId=' + sepetId + '&adet=' + yeniAdet
+        }).then(response => {
+            if (response.ok) { location.reload(); }
+        });
+    }
+</script>

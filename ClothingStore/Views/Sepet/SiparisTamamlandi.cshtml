@@ -1,0 +1,125 @@
+﻿@* =================================================================================================================
+ * DOSYA ADI: SiparisTamamlandi.cshtml (Başarılı İşlem Bildirim Sayfası)
+ * AMACI: Ödeme ve satın alma süreci başarıyla sonuçlanan kullanıcıyı karşılayan, işlem onayını görsel bir 
+ * geri bildirimle sunan ve kullanıcıyı bir sonraki adıma (takip veya yeni alışveriş) yönlendiren final arayüzüdür.
+ * * KULLANILAN TEKNOLOJİLER VE KÜTÜPHANELER:
+ * - Razor View Engine: Layout entegrasyonu ve dinamik sayfa başlığı yönetimi.
+ * - CSS3 (Modern UI): 'linear-gradient' geçişli ikonlar, 'box-shadow' derinlik efektleri ve yumuşak köşe (35px) yapıları.
+ * - Font-Awesome 6: İşlem başarısını simgeleyen dev onay ikonu ve navigasyon yardımcı görselleri.
+ * - Bootstrap 5 Flexbox: Sayfa içeriğini dikey ve yatayda tam merkezleyen (min-height: 80vh) duyarlı yapı.
+ * * TASARIM VE FONKSİYONEL DETAYLAR:
+ * 1. Görsel Onay Mekanizması: 'check-icon' sınıfı ile CSS gradient (geçişli renk) uygulanmış büyük onay ikonu 
+ * sayesinde başarının anlık olarak hissettirilmesi.
+ * 2. Psikolojik Tasarım Faktörü: 'Soft-Pink' ve 'Lila' tonlarının ağırlıkta olduğu sakinleştirici ve güven 
+ * veren renk paleti kullanımı.
+ * 3. Dönüşüm Odaklı Navigasyon: Kullanıcının siparişini hemen kontrol etmesi (Siparislerim) veya yeni bir 
+ * alışverişe başlaması (Anasayfa) için tasarlanan yüksek kontrastlı butonlar.
+ * 4. UX Standartları: Butonlara uygulanan 'translateY' hover animasyonları ile interaktif hissin korunması.
+ * 5. Mesaj İçeriği: Kullanıcıya e-posta bilgilendirmesi yapıldığına dair metin girişi ile satış sonrası 
+ * bilgilendirme sürecinin netleştirilmesi.
+ ================================================================================================================= *@
+
+@{
+    ViewData["Title"] = "Sipariş Tamamlandı";
+}
+
+<style>
+    body {
+        background-color: #fdf8fd;
+    }
+
+
+    .success-card {
+        background: white;
+        border-radius: 35px;
+        padding: 60px 40px;
+        box-shadow: 0 15px 40px rgba(167, 112, 239, 0.08);
+        max-width: 600px;
+        width: 100%;
+        text-align: center;
+        border: none;
+    }
+
+    .icon-box {
+        background: #f3ebf3;
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 30px;
+    }
+
+    .check-icon {
+        font-size: 60px;
+        background: linear-gradient(135deg, #ff7eb3 0%, #a770ef 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .btn-orders {
+        background: linear-gradient(135deg, #ff7eb3 0%, #a770ef 100%);
+        color: white;
+        border: none;
+        border-radius: 15px;
+        padding: 15px 30px;
+        font-weight: 800;
+        transition: 0.3s;
+        box-shadow: 0 5px 15px rgba(167, 112, 239, 0.2);
+    }
+
+        .btn-orders:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(167, 112, 239, 0.3);
+            color: white;
+        }
+
+    .btn-continue {
+        background: white;
+        color: #8a4baf;
+        border: 2px solid #f3ebf3;
+        border-radius: 15px;
+        padding: 15px 30px;
+        font-weight: 800;
+        transition: 0.3s;
+    }
+
+        .btn-continue:hover {
+            background: #fdf8fd;
+            border-color: #FF1493;
+            color: #8a4baf;
+        }
+
+    .confetti-dot {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+    }
+</style>
+
+<div class="container d-flex align-items-center justify-content-center" style="min-height: 80vh;">
+    <div class="success-card">
+        <div class="icon-box">
+            <i class="fa fa-check-circle check-icon"></i>
+        </div>
+
+        <h1 class="fw-bold mb-3" style="color: #333; font-size: 2.5rem;">Harika!</h1>
+        <h3 class="mb-4" style="color: #8a4baf; font-weight: 700;">Siparişiniz Başarıyla Alındı</h3>
+
+        <p class="text-muted mb-5 px-lg-5" style="font-size: 1.1rem; line-height: 1.6;">
+            Siparişinizi hazırlamak için sabırsızlanıyoruz! Detayları e-posta adresinize gönderdik. Profilinizden sipariş sürecini anlık olarak takip edebilirsiniz.
+        </p>
+
+        <div class="d-grid d-sm-flex justify-content-sm-center gap-3">
+            <a href="/Account/Siparislerim" class="btn btn-orders btn-lg">
+                <i class="fa fa-box-open me-2"></i> Siparişlerime Git
+            </a>
+            <a href="/Home/Index" class="btn btn-continue btn-lg">
+                <i class="fa fa-shopping-bag me-2"></i> Alışverişe Devam Et
+            </a>
+        </div>
+        </div>
+    </div>
+</div>
